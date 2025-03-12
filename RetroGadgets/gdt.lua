@@ -5,13 +5,13 @@ _G.gdt = {
         Time = 0
     },
     VideoChip0 = {
-        Width = love.graphics.getWidth(),
-        Height = love.graphics.getHeight()
+        Width  = GADGET.ScreenWidth,
+        Height = GADGET.ScreenHeight
     }
 }
 
 function gdt.VideoChip0:Clear( color )
-    love.graphics.setBackgroundColor(color.R/255,color.G/255,color.B/255,color.A/255)
+    love.graphics.clear(color.R/255,color.G/255,color.B/255,color.A/255)
 end
 
 function _G._update_gdt()

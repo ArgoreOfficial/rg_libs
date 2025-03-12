@@ -1,87 +1,63 @@
-if gdt == nil then
-    require( "RetroGadgets" ) -- RG compatibility layer
-end
 
-local rmath = require("rg_math")
-local rg3d  = require("rg_3d")
 
-function debug_triangle(_p1,_p2,_p3)
-    love.graphics.line(
-        _p1.X, _p1.Y,
-        _p2.X, _p2.Y,
-        _p3.X, _p3.Y,
-        _p1.X, _p1.Y
-    )
-end
+--[[ CONFIG ]]
 
-function debug_quad(_p1,_p2,_p3,_p4)
-    love.graphics.line(
-        _p1.X, _p1.Y,
-        _p2.X, _p2.Y,
-        _p3.X, _p3.Y,
-        _p4.X, _p4.Y,
-        _p1.X, _p1.Y
-    )
-end
+GADGET = {
+	ScreenWidth = 256,
+	ScreenHeight = 128,
+	Scale = 2
+}
 
-function debug_quad_tri(_p1,_p2,_p3,_p4)
-    love.graphics.line(
-        _p1.X, _p1.Y,
-        _p2.X, _p2.Y,
-        _p4.X, _p4.Y,
-        _p1.X, _p1.Y
-    )
+--[[ END CONFIG ]]
 
-    love.graphics.line(
-        _p2.X, _p2.Y,
-        _p3.X, _p3.Y,
-        _p4.X, _p4.Y,
-        _p2.X, _p2.Y
-    )
-end
 
-function vec4_to_screen(_vec)
-    local n = _vec / _vec.W
-    return vec4(
-        ( n.X/2 + 0.5) * gdt.VideoChip0.Width,
-        (-n.Y/2 + 0.5) * gdt.VideoChip0.Height,
-        n.Z,
-        n.W
-    )
-end
+-- TODO:
+--[[
 
-function draw_triangle(_p1,_p2,_p3)
-    debug_triangle(_p1,_p2,_p3)
-end
+CONFIG = require("RetroGadgets/rg_config")
+CONFIG:VideoChip(0, 256, 128)
+CONFIG:KeyboardChip()
 
-rg3d:push_perspective(
-    1,    -- screen aspect ratio
-    1.23, -- FOV (radians)
-    0.1,  -- near clip
-    10    -- far clip
-)
+require( "RetroGadgets/rg" )
+_setup_rg_runtime(CONFIG)
 
-function Update()
-    gdt.VideoChip0:Clear(color.red)
-    local s = math.sin(gdt.CPU0.Time)
-    print(s)
-    -- triangle in world space
-    local p1 = vec4(-0.5, 0.0, -1.3 + s*0.2, 1)
-    local p2 = vec4( 0.0, 1.0, -1.3 + s*0.2, 1)
-    local p3 = vec4( 0.5, 0.0, -1.3 + s*0.2, 1)
-    
-    -- push_view_transform(pos,rot)
-    
-    -- triangle in screen space
-    local t1 = vec4_to_screen(rg3d:project(p1))
-    local t2 = vec4_to_screen(rg3d:project(p2))
-    local t3 = vec4_to_screen(rg3d:project(p3))
+]]
 
-    draw_triangle(t1,t2,t3)
+
+-- LÖVE2D setup
+
+local canvas = love.graphics.newCanvas(GADGET.ScreenWidth, GADGET.ScreenHeight)
+
+-- RG Layer
+require( "RetroGadgets/rg" )
+
+function love.load()	
+	love.window.setMode(
+		GADGET.ScreenWidth  * GADGET.Scale,
+		GADGET.ScreenHeight * GADGET.Scale,
+		{vsync=1}
+	)
+	
+	canvas:setFilter("nearest","nearest")
+
+	love.graphics.setCanvas(canvas)
+	love.graphics.setLineStyle("rough") 
+	love.graphics.setLineWidth(1) 
+	
+	dofile( "CPU0.lua" )
+	
+	love.graphics.setCanvas()
 end
 
 function love.draw()
-    _update_gdt();
-    Update()
-    _display_print()
+	love.graphics.setCanvas(canvas)
+	
+	_update_gdt()
+	if Update ~= nil then
+		Update()
+	end
+	_display_print()
+	
+	love.graphics.setCanvas()
+	love.graphics.draw(canvas,0,0,0,GADGET.Scale,GADGET.Scale)
 end
