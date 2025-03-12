@@ -3,7 +3,7 @@ if gdt == nil then
 end
 
 local rmath = require("rg_math")
-local rg3d = require("rg_3d")
+local rg3d  = require("rg_3d")
 
 function debug_triangle(_p1,_p2,_p3)
     love.graphics.line(
@@ -51,10 +51,6 @@ function vec4_to_screen(_vec)
 end
 
 function draw_triangle(_p1,_p2,_p3)
-    love.graphics.print(tostring(_p1),0,0)
-    love.graphics.print(tostring(_p2),0,16)
-    love.graphics.print(tostring(_p3),0,32)
-
     debug_triangle(_p1,_p2,_p3)
 end
 
@@ -68,7 +64,7 @@ rg3d:push_perspective(
 function Update()
     gdt.VideoChip0:Clear(color.clear)
     local s = math.sin(gdt.CPU0:Time())
-    
+    print(s)
     -- triangle in world space
     local p1 = vec4(-0.5, 0.0, -1.3 + s*0.2, 1)
     local p2 = vec4( 0.0, 1.0, -1.3 + s*0.2, 1)
@@ -86,4 +82,5 @@ end
 
 function love.draw()
     Update()
+    _display_print()
 end

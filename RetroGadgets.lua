@@ -2,6 +2,7 @@
 
 require("RetroGadgets/vec")
 require("RetroGadgets/color")
+require("RetroGadgets/print")
 
 _G.gdt = require("RetroGadgets/gdt")
 
