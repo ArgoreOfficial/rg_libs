@@ -62,8 +62,8 @@ rg3d:push_perspective(
 )
 
 function Update()
-    gdt.VideoChip0:Clear(color.clear)
-    local s = math.sin(gdt.CPU0:Time())
+    gdt.VideoChip0:Clear(color.red)
+    local s = math.sin(gdt.CPU0.Time)
     print(s)
     -- triangle in world space
     local p1 = vec4(-0.5, 0.0, -1.3 + s*0.2, 1)
@@ -81,6 +81,7 @@ function Update()
 end
 
 function love.draw()
+    _update_gdt();
     Update()
     _display_print()
 end
