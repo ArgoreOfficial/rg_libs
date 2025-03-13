@@ -32,10 +32,10 @@ function lib:vec4(_x,_y,_z,_w)
 end
 
 function vec4_meta.__tostring(_vec) 
-    return string.format("%.1f", _vec.X) .. ", " 
-        .. string.format("%.1f", _vec.Y) .. ", " 
-        .. string.format("%.1f", _vec.Z) .. ", " 
-        .. string.format("%.1f", _vec.W)
+    return tostring(_vec.X) .. ", " 
+        .. tostring(_vec.Y) .. ", " 
+        .. tostring(_vec.Z) .. ", " 
+        .. tostring(_vec.W)
 end
 
 function vec4_meta.__mul(_vec,_scalar)
