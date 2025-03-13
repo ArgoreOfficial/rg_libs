@@ -122,8 +122,8 @@ function lib:vec4_mult_mat4( _mat, _vec )
 	)
 end
 
-function lib:mat4_transform( mat, _vec ) 
-    local v = lib:vec4_mult_mat4( 
+function lib:mat4_transform( _mat, _vec ) 
+    return lib:vec4_mult_mat4( 
         _mat, 
         vec4( _vec.X, _vec.Y, _vec.Z, 1 ) 
     )
