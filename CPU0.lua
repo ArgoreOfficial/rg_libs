@@ -24,7 +24,7 @@ local screen_width  = gdt.VideoChip0.Width
 local screen_height = gdt.VideoChip0.Height
 
 -- update function is repeated every time tick
-function Update()
+function update()
     gdt.VideoChip0:Clear(color.black)
     
     -- triangle in world space

@@ -3,8 +3,8 @@
 --[[ CONFIG ]]
 
 GADGET = {
-	ScreenWidth = 256,
-	ScreenHeight = 128,
+	ScreenWidth = 384,
+	ScreenHeight = 192,
 	Scale = 2
 }
 
@@ -53,8 +53,8 @@ function love.draw()
 	love.graphics.setCanvas(canvas)
 	
 	_update_gdt()
-	if Update ~= nil then
-		Update()
+	if update ~= nil then
+		update()
 	end
 	_display_print()
 	
