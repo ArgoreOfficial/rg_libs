@@ -124,6 +124,57 @@ function lib:mat4_transform( _mat, _vec )
     )
 end
 
+function lib:mat4_inverse( _m )
+	local A2323 = _m.m22 * _m.m33 - _m.m23 * _m.m32
+	local A1323 = _m.m21 * _m.m33 - _m.m23 * _m.m31
+	local A1223 = _m.m21 * _m.m32 - _m.m22 * _m.m31
+	local A0323 = _m.m20 * _m.m33 - _m.m23 * _m.m30
+	local A0223 = _m.m20 * _m.m32 - _m.m22 * _m.m30
+	local A0123 = _m.m20 * _m.m31 - _m.m21 * _m.m30
+	local A2313 = _m.m12 * _m.m33 - _m.m13 * _m.m32
+	local A1313 = _m.m11 * _m.m33 - _m.m13 * _m.m31
+	local A1213 = _m.m11 * _m.m32 - _m.m12 * _m.m31
+	local A2312 = _m.m12 * _m.m23 - _m.m13 * _m.m22
+	local A1312 = _m.m11 * _m.m23 - _m.m13 * _m.m21
+	local A1212 = _m.m11 * _m.m22 - _m.m12 * _m.m21
+	local A0313 = _m.m10 * _m.m33 - _m.m13 * _m.m30
+	local A0213 = _m.m10 * _m.m32 - _m.m12 * _m.m30
+	local A0312 = _m.m10 * _m.m23 - _m.m13 * _m.m20
+	local A0212 = _m.m10 * _m.m22 - _m.m12 * _m.m20
+	local A0113 = _m.m10 * _m.m31 - _m.m11 * _m.m30
+	local A0112 = _m.m10 * _m.m21 - _m.m11 * _m.m20
+
+	local det = _m.m00 * ( _m.m11 * A2323 - _m.m12 * A1323 + _m.m13 * A1223 )
+		      - _m.m01 * ( _m.m10 * A2323 - _m.m12 * A0323 + _m.m13 * A0223 )
+		      + _m.m02 * ( _m.m10 * A1323 - _m.m11 * A0323 + _m.m13 * A0123 )
+		      - _m.m03 * ( _m.m10 * A1223 - _m.m11 * A0223 + _m.m12 * A0123 )
+
+	if det == 0.0 then -- determinant is zero, inverse matrix does not exist
+		return lib:mat4()
+    end
+	det = 1 / det
+
+	local im = lib:mat4()
+
+	im.m00 = det *  ( _m.m11 * A2323 - _m.m12 * A1323 + _m.m13 * A1223 )
+	im.m01 = det * -( _m.m01 * A2323 - _m.m02 * A1323 + _m.m03 * A1223 )
+	im.m02 = det *  ( _m.m01 * A2313 - _m.m02 * A1313 + _m.m03 * A1213 )
+	im.m03 = det * -( _m.m01 * A2312 - _m.m02 * A1312 + _m.m03 * A1212 )
+	im.m10 = det * -( _m.m10 * A2323 - _m.m12 * A0323 + _m.m13 * A0223 )
+	im.m11 = det *  ( _m.m00 * A2323 - _m.m02 * A0323 + _m.m03 * A0223 )
+	im.m12 = det * -( _m.m00 * A2313 - _m.m02 * A0313 + _m.m03 * A0213 )
+	im.m13 = det *  ( _m.m00 * A2312 - _m.m02 * A0312 + _m.m03 * A0212 )
+	im.m20 = det *  ( _m.m10 * A1323 - _m.m11 * A0323 + _m.m13 * A0123 )
+	im.m21 = det * -( _m.m00 * A1323 - _m.m01 * A0323 + _m.m03 * A0123 )
+	im.m22 = det *  ( _m.m00 * A1313 - _m.m01 * A0313 + _m.m03 * A0113 )
+	im.m23 = det * -( _m.m00 * A1312 - _m.m01 * A0312 + _m.m03 * A0112 )
+	im.m30 = det * -( _m.m10 * A1223 - _m.m11 * A0223 + _m.m12 * A0123 )
+	im.m31 = det *  ( _m.m00 * A1223 - _m.m01 * A0223 + _m.m02 * A0123 )
+	im.m32 = det * -( _m.m00 * A1213 - _m.m01 * A0213 + _m.m02 * A0113 )
+	im.m33 = det *  ( _m.m00 * A1212 - _m.m01 * A0212 + _m.m02 * A0112 )
+
+	return im
+end
 -- https://github.com/ArgoreOfficial/Wyvern/blob/dev/src/engine/wv/math/matrix_core.h#L272
 function lib:mat4_perspective( _aspect, _fov, _near, _far )
 	local e = 1.0 / math.tan( _fov / 2.0 )
