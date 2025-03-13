@@ -1,5 +1,53 @@
 local lib = {}
 
+--------------------------------------------------------
+--[[  Vector 3                                        ]]
+--------------------------------------------------------
+
+function lib:vec3_normalize( _vec )
+    local len = math.sqrt( _vec.X * _vec.X + _vec.Y * _vec.Y + _vec.Z * _vec.Z )
+    if len == 0 then
+        return vec3(0,0,0)
+    end
+    return _vec / len
+end
+
+function lib:vec3_cross( _lhs, _rhs )
+    return vec3(
+        _lhs.Y * _rhs.Z - _lhs.Z * _rhs.Y,
+        _lhs.Z * _rhs.X - _lhs.X * _rhs.Z,
+        _lhs.X * _rhs.Y - _lhs.Y * _rhs.X
+    )
+end
+
+--------------------------------------------------------
+--[[  Vector 4                                        ]]
+--------------------------------------------------------
+
+function lib:vec4_normalize( _vec )
+    local len = math.pow(_vec.X, 2) + 
+                math.pow(_vec.Y, 2) + 
+                math.pow(_vec.Z, 2) + 
+                math.pow(_vec.W, 2)
+    if len == 0 then
+        return vec4(0,0,0,0)
+    end
+    return _vec / len
+end
+
+function lib:vec4_to_screen(_vec,_width,_height)
+    local n = _vec / _vec.W
+    return vec4(
+        ( n.X/2 + 0.5) * _width,
+        (-n.Y/2 + 0.5) * _height,
+        n.Z,
+        n.W
+    )
+end
+--------------------------------------------------------
+--[[  Matrix 3x3                                      ]]
+--------------------------------------------------------
+
 function lib:mat3x3(_00, _01, _02, _10, _11, _12, _20, _21, _22 ) 
     return {
         m00 = _00, m01 = _01, m02 = _02,
@@ -14,24 +62,6 @@ function lib:mat3x3_identity()
         0, 1, 0,
         0, 0, 1
     )
-end
-
-function lib:mat4( 
-    _00, _01, _02, _03, 
-    _10, _11, _12, _13, 
-    _20, _21, _22, _23, 
-    _30, _31, _32, _33 )
-
-    return {
-        m00 = _00 or 1, m01 = _01 or 0, m02 = _02 or 0, m03 = _03 or 0,
-        m10 = _10 or 0, m11 = _11 or 1, m12 = _12 or 0, m13 = _13 or 0,
-        m20 = _20 or 0, m21 = _21 or 0, m22 = _22 or 1, m23 = _23 or 0,
-        m30 = _30 or 0, m31 = _31 or 0, m32 = _32 or 0, m33 = _33 or 1
-    }
-end
-
-function lib:mat4_identity() 
-    return lib:mat4()
 end
 
 function lib:mat3x3_transform( _mat, _vec )
@@ -97,6 +127,28 @@ function lib:mat3x3_inverse(_mat)
     ret.m22 = (_mat.m00 * _mat.m11 - _mat.m10 * _mat.m01) * invdet
     
     return ret
+end
+
+--------------------------------------------------------
+--[[  Matrix 4x4                                      ]]
+--------------------------------------------------------
+
+function lib:mat4( 
+    _00, _01, _02, _03, 
+    _10, _11, _12, _13, 
+    _20, _21, _22, _23, 
+    _30, _31, _32, _33 )
+
+    return {
+        m00 = _00 or 1, m01 = _01 or 0, m02 = _02 or 0, m03 = _03 or 0,
+        m10 = _10 or 0, m11 = _11 or 1, m12 = _12 or 0, m13 = _13 or 0,
+        m20 = _20 or 0, m21 = _21 or 0, m22 = _22 or 1, m23 = _23 or 0,
+        m30 = _30 or 0, m31 = _31 or 0, m32 = _32 or 0, m33 = _33 or 1
+    }
+end
+
+function lib:mat4_identity() 
+    return lib:mat4()
 end
 
 function lib:mat4_mult_vec4( _mat, _vec )
@@ -175,6 +227,7 @@ function lib:mat4_inverse( _m )
 
 	return im
 end
+
 -- https://github.com/ArgoreOfficial/Wyvern/blob/dev/src/engine/wv/math/matrix_core.h#L272
 function lib:mat4_perspective( _aspect, _fov, _near, _far )
 	local e = 1.0 / math.tan( _fov / 2.0 )
@@ -192,23 +245,40 @@ function lib:mat4_perspective( _aspect, _fov, _near, _far )
 	return res
 end
 
-function lib:vec3_normalize( _vec )
-    local len = math.sqrt( _vec.X * _vec.X + _vec.Y * _vec.Y + _vec.Z * _vec.Z )
-    if len == 0 then
-        return vec3(0,0,0)
-    end
-    return _vec / len
+-- Camera to World Matrix 
+function lib:mat4_look_at_c2w(_from, _to, _up) 
+    local forward = lib:vec3_normalize(_from - _to)
+    local right = lib:vec3_normalize(lib:vec3_cross(_up, forward))
+    local up = lib:vec3_cross(forward, right)
+    
+    return lib:mat4(
+          right.X,    right.Y,    right.Z, 0,
+             up.X,       up.Y,       up.Z, 0,
+        forward.X,  forward.Y,  forward.Z, 0,
+          _from.X,    _from.Y,    _from.Z, 1
+    )
 end
 
-function lib:vec4_normalize( _vec )
-    local len = math.pow(_vec.X, 2) + 
-                math.pow(_vec.Y, 2) + 
-                math.pow(_vec.Z, 2) + 
-                math.pow(_vec.W, 2)
-    if len == 0 then
-        return vec4(0,0,0,0)
-    end
-    return _vec / len
+-- View (World to Camera) Matrix == inverse(mat4_look_at_c2w)
+function lib:mat4_look_at(_eye, _center, _up)
+    local f = lib:vec3_normalize(_center - _eye)
+    local s = lib:vec3_normalize(lib:vec3_cross(f, _up))
+    local t = lib:vec3_cross(s, f)
+
+    local mat = lib:mat4(
+        s.X, t.X, -f.X, 0.0,
+        s.Y, t.Y, -f.Y, 0.0,
+        s.Z, t.Z, -f.Z, 0.0,
+        0.0, 0.0,  0.0, 1.0
+    )
+
+    local e = lib:vec4_mult_mat4(mat, vec4(-_eye.X, -_eye.Y, -_eye.Z, 0.0))
+    mat.m30 = e.X
+    mat.m31 = e.Y
+    mat.m32 = e.Z
+    mat.m33 = e.W
+
+    return mat
 end
 
 return lib
