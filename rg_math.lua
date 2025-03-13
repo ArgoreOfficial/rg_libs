@@ -23,20 +23,15 @@ function lib:mat4(
     _30, _31, _32, _33 )
 
     return {
-        m00 = _00, m01 = _01, m02 = _02, m03 = _03,
-        m10 = _10, m11 = _11, m12 = _12, m13 = _13,
-        m20 = _20, m21 = _21, m22 = _22, m23 = _23,
-        m30 = _30, m31 = _31, m32 = _32, m33 = _33
+        m00 = _00 or 1, m01 = _01 or 0, m02 = _02 or 0, m03 = _03 or 0,
+        m10 = _10 or 0, m11 = _11 or 1, m12 = _12 or 0, m13 = _13 or 0,
+        m20 = _20 or 0, m21 = _21 or 0, m22 = _22 or 1, m23 = _23 or 0,
+        m30 = _30 or 0, m31 = _31 or 0, m32 = _32 or 0, m33 = _33 or 1
     }
 end
 
 function lib:mat4_identity() 
-    return lib:mat4(
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1
-    )
+    return lib:mat4()
 end
 
 function lib:mat3x3_transform( _mat, _vec )
