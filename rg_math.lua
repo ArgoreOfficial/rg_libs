@@ -141,4 +141,23 @@ function lib:mat4_perspective( _aspect, _fov, _near, _far )
 	return res
 end
 
+function lib:vec3_normalize( _vec )
+    local len = math.sqrt( _vec.X * _vec.X + _vec.Y * _vec.Y + _vec.Z * _vec.Z )
+    if len == 0 then
+        return vec3(0,0,0)
+    end
+    return _vec / len
+end
+
+function lib:vec4_normalize( _vec )
+    local len = math.pow(_vec.X, 2) + 
+                math.pow(_vec.Y, 2) + 
+                math.pow(_vec.Z, 2) + 
+                math.pow(_vec.W, 2)
+    if len == 0 then
+        return vec4(0,0,0,0)
+    end
+    return _vec / len
+end
+
 return lib
