@@ -4,38 +4,9 @@ local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
 
 local function debug_triangle(_p1,_p2,_p3)
-    love.graphics.line(
-        _p1.X, _p1.Y,
-        _p2.X, _p2.Y,
-        _p3.X, _p3.Y,
-        _p1.X, _p1.Y
-    )
-end
-
-local function debug_quad(_p1,_p2,_p3,_p4)
-    love.graphics.line(
-        _p1.X, _p1.Y,
-        _p2.X, _p2.Y,
-        _p3.X, _p3.Y,
-        _p4.X, _p4.Y,
-        _p1.X, _p1.Y
-    )
-end
-
-local function debug_quad_tri(_p1,_p2,_p3,_p4)
-    love.graphics.line(
-        _p1.X, _p1.Y,
-        _p2.X, _p2.Y,
-        _p4.X, _p4.Y,
-        _p1.X, _p1.Y
-    )
-
-    love.graphics.line(
-        _p2.X, _p2.Y,
-        _p3.X, _p3.Y,
-        _p4.X, _p4.Y,
-        _p2.X, _p2.Y
-    )
+    gdt.VideoChip0:DrawLine(_p1,_p2,color.red)
+    gdt.VideoChip0:DrawLine(_p2,_p3,color.red)
+    gdt.VideoChip0:DrawLine(_p3,_p1,color.red)
 end
 
 local function draw_triangle(_p1,_p2,_p3)

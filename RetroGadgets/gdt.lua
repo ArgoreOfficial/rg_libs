@@ -11,7 +11,12 @@ _G.gdt = {
 }
 
 function gdt.VideoChip0:Clear( color )
-    love.graphics.clear(color.R/255,color.G/255,color.B/255,color.A/255)
+    love.graphics.clear(color.R/255, color.G/255, color.B/255, color.A/255)
+end
+
+function gdt.VideoChip0:DrawLine(_start,_end,_color)
+    love.graphics.setColor(_color.R/255, _color.G/255, _color.B/255, _color.A/255)
+    love.graphics.line(_start.X, _start.Y, _end.X, _end.Y)
 end
 
 function _G._update_gdt()
