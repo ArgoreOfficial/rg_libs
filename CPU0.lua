@@ -3,7 +3,7 @@
 local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
 
-function debug_triangle(_p1,_p2,_p3)
+local function debug_triangle(_p1,_p2,_p3)
     love.graphics.line(
         _p1.X, _p1.Y,
         _p2.X, _p2.Y,
@@ -12,7 +12,7 @@ function debug_triangle(_p1,_p2,_p3)
     )
 end
 
-function debug_quad(_p1,_p2,_p3,_p4)
+local function debug_quad(_p1,_p2,_p3,_p4)
     love.graphics.line(
         _p1.X, _p1.Y,
         _p2.X, _p2.Y,
@@ -22,7 +22,7 @@ function debug_quad(_p1,_p2,_p3,_p4)
     )
 end
 
-function debug_quad_tri(_p1,_p2,_p3,_p4)
+local function debug_quad_tri(_p1,_p2,_p3,_p4)
     love.graphics.line(
         _p1.X, _p1.Y,
         _p2.X, _p2.Y,
@@ -38,43 +38,51 @@ function debug_quad_tri(_p1,_p2,_p3,_p4)
     )
 end
 
-function vec4_to_screen(_vec)
-    local n = _vec / _vec.W
-    return vec4(
-        ( n.X/2 + 0.5) * gdt.VideoChip0.Width,
-        (-n.Y/2 + 0.5) * gdt.VideoChip0.Height,
-        n.Z,
-        n.W
-    )
-end
-
-function draw_triangle(_p1,_p2,_p3)
+local function draw_triangle(_p1,_p2,_p3)
     debug_triangle(_p1,_p2,_p3)
 end
 
 rg3d:push_perspective(
-    1,    -- screen aspect ratio
+    gdt.VideoChip0.Width / gdt.VideoChip0.Height,    -- screen aspect ratio
     1.23, -- FOV (radians)
     0.1,  -- near clip
     10    -- far clip
 )
 
+local screen_width  = gdt.VideoChip0.Width
+local screen_height = gdt.VideoChip0.Height
+
 -- update function is repeated every time tick
 function Update()
     gdt.VideoChip0:Clear(color.black)
-    local s = math.sin(gdt.CPU0.Time)
-    print(s)
+    
     -- triangle in world space
-    local p1 = vec4(-0.5, 0.0, -1.3 + s*0.2, 1)
-    local p2 = vec4( 0.0, 1.0, -1.3 + s*0.2, 1)
-    local p3 = vec4( 0.5, 0.0, -1.3 + s*0.2, 1)
-    
-    -- push_view_transform(pos,rot)
-    
-    -- triangle in screen space
-    local t1 = vec4_to_screen(rg3d:project(p1))
-    local t2 = vec4_to_screen(rg3d:project(p2))
-    local t3 = vec4_to_screen(rg3d:project(p3))
+    local vertex_data = {
+        vec4(-0.5, -0.5, 0.0, 1),
+        vec4(-0.5,  0.5, 0.0, 1),
+        vec4( 0.5, -0.5, 0.0, 1),
 
-    draw_triangle(t1,t2,t3)
+        vec4(-0.5,  0.5, 0.0, 1),
+        vec4( 0.5,  0.5, 0.0, 1),
+        vec4( 0.5, -0.5, 0.0, 1)
+    }
+
+    -- push_view_transform(pos,rot)
+    local view_mat = rmath:mat4_look_at(vec3(0.5,0.6,1), vec3(0,0,0), vec3(0,1,0))
+
+    -- triangles in screen space
+    local transformed_data = {}
+    for i = 1, #vertex_data do
+        local transformed = rmath:mat4_transform(view_mat, vertex_data[i])
+        transformed_data[i] = rmath:vec4_to_screen(rg3d:project(transformed),screen_width,screen_height)
+    end
+    
+    -- draw triangles
+    for i = 1, #transformed_data, 3 do
+        draw_triangle(
+            transformed_data[i],
+            transformed_data[i + 1],
+            transformed_data[i + 2]
+        )
+    end
 end
