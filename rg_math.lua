@@ -24,24 +24,89 @@ end
 --[[  Vector 4                                        ]]
 --------------------------------------------------------
 
+local vec4_meta = {}
+
+function lib:vec4(_x,_y,_z,_w)
+    local vec = setmetatable({ X=_x, Y=_y, Z=_z, W=_w }, vec4_meta)
+    return vec
+end
+
+function vec4_meta.__tostring(_vec) 
+    return string.format("%.1f", _vec.X) .. ", " 
+        .. string.format("%.1f", _vec.Y) .. ", " 
+        .. string.format("%.1f", _vec.Z) .. ", " 
+        .. string.format("%.1f", _vec.W)
+end
+
+function vec4_meta.__mul(_vec,_scalar)
+    return lib:vec4(
+        _vec.X * _scalar, 
+        _vec.Y * _scalar, 
+        _vec.Z * _scalar, 
+        _vec.W * _scalar
+    )
+end
+
+function vec4_meta.__div(_vec,_scalar)
+    return lib:vec4(
+        _vec.X / _scalar, 
+        _vec.Y / _scalar, 
+        _vec.Z / _scalar, 
+        _vec.W / _scalar
+    )
+end
+
+function vec4_meta.__add(_lhs,_rhs)
+    return lib:vec4(
+        _lhs.X + _rhs.X, 
+        _lhs.Y + _rhs.Y, 
+        _lhs.Z + _rhs.Z, 
+        _lhs.W + _rhs.W
+    )
+end
+
+function vec4_meta.__sub(_lhs,_rhs)
+    return lib:vec4(
+        _lhs.X - _rhs.X, 
+        _lhs.Y - _rhs.Y, 
+        _lhs.Z - _rhs.Z, 
+        _lhs.W - _rhs.W
+    )
+end
+
+function vec4_meta.__unm(_vec)
+    return lib:vec4(
+        -_vec.X, 
+        -_vec.Y, 
+        -_vec.Z, 
+        -_vec.W
+    )
+end
+
+function vec4_meta.__eq(_lhs,_rhs)
+    return 
+        _lhs.X == _rhs.X and
+        _lhs.Y == _rhs.Y and
+        _lhs.Z == _rhs.Z and
+        _lhs.W == _rhs.W
+end
+
 function lib:vec4_normalize( _vec )
     local len = math.pow(_vec.X, 2) + 
                 math.pow(_vec.Y, 2) + 
                 math.pow(_vec.Z, 2) + 
                 math.pow(_vec.W, 2)
     if len == 0 then
-        return vec4(0,0,0,0)
+        return lib:vec4(0,0,0,0)
     end
     return _vec / len
 end
 
 function lib:vec4_to_screen(_vec,_width,_height)
     local n = _vec / _vec.W
-    return vec4(
+    return vec2(
         ( n.X/2 + 0.5) * _width,
-        (-n.Y/2 + 0.5) * _height,
-        n.Z,
-        n.W
+        (-n.Y/2 + 0.5) * _height
     )
 end
 --------------------------------------------------------
@@ -152,7 +217,7 @@ function lib:mat4_identity()
 end
 
 function lib:mat4_mult_vec4( _mat, _vec )
-	return vec4(
+	return lib:vec4(
 		_vec.X*_mat.m00 + _vec.Y*_mat.m01 + _vec.Z*_mat.m02 + _vec.W*_mat.m03,
 		_vec.X*_mat.m10 + _vec.Y*_mat.m11 + _vec.Z*_mat.m12 + _vec.W*_mat.m13,
 		_vec.X*_mat.m20 + _vec.Y*_mat.m21 + _vec.Z*_mat.m22 + _vec.W*_mat.m23,
@@ -161,7 +226,7 @@ function lib:mat4_mult_vec4( _mat, _vec )
 end
 
 function lib:vec4_mult_mat4( _mat, _vec )
-	return vec4(
+	return lib:vec4(
 		_vec.X*_mat.m00 + _vec.Y*_mat.m10 + _vec.Z*_mat.m20 + _vec.W*_mat.m30,
 		_vec.X*_mat.m01 + _vec.Y*_mat.m11 + _vec.Z*_mat.m21 + _vec.W*_mat.m31,
 		_vec.X*_mat.m02 + _vec.Y*_mat.m12 + _vec.Z*_mat.m22 + _vec.W*_mat.m32,
@@ -172,7 +237,7 @@ end
 function lib:mat4_transform( _mat, _vec ) 
     return lib:vec4_mult_mat4( 
         _mat, 
-        vec4( _vec.X, _vec.Y, _vec.Z, 1 ) 
+        lib:vec4( _vec.X, _vec.Y, _vec.Z, 1 ) 
     )
 end
 
@@ -272,7 +337,7 @@ function lib:mat4_look_at(_eye, _center, _up)
         0.0, 0.0,  0.0, 1.0
     )
 
-    local e = lib:vec4_mult_mat4(mat, vec4(-_eye.X, -_eye.Y, -_eye.Z, 0.0))
+    local e = lib:vec4_mult_mat4(mat, lib:vec4(-_eye.X, -_eye.Y, -_eye.Z, 0.0))
     mat.m30 = e.X
     mat.m31 = e.Y
     mat.m32 = e.Z

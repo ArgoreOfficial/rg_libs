@@ -29,13 +29,13 @@ function Update()
     
     -- triangle in world space
     local vertex_data = {
-        vec4(-0.5, -0.5, 0.0, 1),
-        vec4(-0.5,  0.5, 0.0, 1),
-        vec4( 0.5, -0.5, 0.0, 1),
+        rmath:vec4(-0.5, -0.5, 0.0, 1),
+        rmath:vec4(-0.5,  0.5, 0.0, 1),
+        rmath:vec4( 0.5, -0.5, 0.0, 1),
 
-        vec4(-0.5,  0.5, 0.0, 1),
-        vec4( 0.5,  0.5, 0.0, 1),
-        vec4( 0.5, -0.5, 0.0, 1)
+        rmath:vec4(-0.5,  0.5, 0.0, 1),
+        rmath:vec4( 0.5,  0.5, 0.0, 1),
+        rmath:vec4( 0.5, -0.5, 0.0, 1)
     }
 
     -- push_view_transform(pos,rot)
