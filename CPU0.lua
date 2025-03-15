@@ -42,13 +42,12 @@ function update()
 	}
 
 	-- push_view_transform(pos,rot)
-	local view_mat = rmath:mat4_look_at(vec3(0.5,0.6,1), vec3(0,0,0), vec3(0,1,0))
-
+	rg3d:push_look_at(vec3(0.5,0.6,1), vec3(0,0,0), vec3(0,1,0))
+	
 	-- triangles in screen space
 	local transformed_data = {}
 	for i = 1, #vertex_data do
-		local transformed = rmath:mat4_transform(view_mat, vertex_data[i])
-		transformed_data[i] = rmath:vec4_to_screen(rg3d:project(transformed),screen_width,screen_height)
+		transformed_data[i] = rg3d:to_screen( vertex_data[i], screen_width, screen_height )
 	end
 	
 	-- draw triangles
