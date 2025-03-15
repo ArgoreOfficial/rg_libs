@@ -33,13 +33,13 @@ function lib:project( _vec )
 	    	 _vec.Z * g_perspective_m22 + _vec.W * g_perspective_m32,
 	    	-_vec.Z )
     else
-        return rmath:vec4(0,0,0,0) -- ortho
+        return rmath:vec4() -- ortho
     end
 end
 
-local v4  = rmath:vec4(0,0,0,0)
-local tv4 = rmath:vec4(0,0,0,0)
-local pv4 = rmath:vec4(0,0,0,0)
+local v4  = rmath:vec4()
+local tv4 = rmath:vec4()
+local pv4 = rmath:vec4()
 function lib:to_screen(_vec, _screen_width, _screen_height)
 	v4  = rmath:vec4(_vec.X, _vec.Y, _vec.Z, 1)
 	tv4 = rmath:mat4_transform(g_view_mat, v4)

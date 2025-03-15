@@ -27,7 +27,7 @@ end
 local vec4_meta = {}
 
 function lib:vec4(_x,_y,_z,_w)
-    local vec = setmetatable({ X=_x, Y=_y, Z=_z, W=_w }, vec4_meta)
+    local vec = setmetatable({ X=_x or 0, Y=_y or 0, Z=_z or 0, W=_w or 0 }, vec4_meta)
     return vec
 end
 
@@ -115,18 +115,10 @@ end
 
 function lib:mat3x3(_00, _01, _02, _10, _11, _12, _20, _21, _22 ) 
     return {
-        m00 = _00, m01 = _01, m02 = _02,
-        m10 = _10, m11 = _11, m12 = _12,
-        m20 = _20, m21 = _21, m22 = _22
+        m00 = _00 or 1, m01 = _01 or 0, m02 = _02 or 0,
+        m10 = _10 or 0, m11 = _11 or 1, m12 = _12 or 0,
+        m20 = _20 or 0, m21 = _21 or 0, m22 = _22 or 1
     }
-end
-
-function lib:mat3x3_identity() 
-    return lib:mat3x3(
-        1, 0, 0,
-        0, 1, 0,
-        0, 0, 1
-    )
 end
 
 function lib:mat3x3_transform( _mat, _vec )
@@ -173,7 +165,7 @@ function lib:mat3x3_mult_mat3x3( _a, _b )
 end
 
 function lib:mat3x3_inverse(_mat)
-    local ret = lib:mat3x3_identity()
+    local ret = lib:mat3x3()
     -- computes the inverse of a matrix m
     local det = _mat.m00 * (_mat.m11 * _mat.m22 - _mat.m21 * _mat.m12) -
                 _mat.m01 * (_mat.m10 * _mat.m22 - _mat.m12 * _mat.m20) +
@@ -210,10 +202,6 @@ function lib:mat4(
         m20 = _20 or 0, m21 = _21 or 0, m22 = _22 or 1, m23 = _23 or 0,
         m30 = _30 or 0, m31 = _31 or 0, m32 = _32 or 0, m33 = _33 or 1
     }
-end
-
-function lib:mat4_identity() 
-    return lib:mat4()
 end
 
 function lib:mat4_mult_vec4( _mat, _vec )
