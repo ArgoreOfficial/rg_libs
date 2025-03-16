@@ -32,13 +32,9 @@ function gdt.VideoChip0:DrawLine(_start,_end,_color)
 end
 
 function gdt.VideoChip0:DrawTriangle(_position1, _position2, _position3, _color)
-    set_color(_color)
-    love.graphics.polygon( 
-        "line", 
-		_position1.X, _position1.Y, 
-		_position2.X, _position2.Y,  
-		_position3.X, _position3.Y )
-    reset_color()
+    gdt.VideoChip0:DrawLine(_position1, _position2, _color)
+    gdt.VideoChip0:DrawLine(_position2, _position3, _color)
+    gdt.VideoChip0:DrawLine(_position3, _position1, _color)
 end
 
 function gdt.VideoChip0:DrawCircle( _position, _radius, _color )
