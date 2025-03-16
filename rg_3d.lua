@@ -64,17 +64,6 @@ local function count_inside_value(_v1,_v2,_v3,_min,_max)
 	return v
 end
 
-local function debug_triangle(_p1,_p2,_p3,_color)
-	gdt.VideoChip0:DrawLine(_p1,_p2,_color)
-	gdt.VideoChip0:DrawLine(_p2,_p3,_color)
-	gdt.VideoChip0:DrawLine(_p3,_p1,_color)
-end
-
-local function draw_triangle(_p1,_p2,_p3,_color)
-	debug_triangle(_p1,_p2,_p3,_color)
-end
-
-
 function lib:raster_triangle(_tri, _render_width, _render_height)
 
 	local p1 = lib:to_clip(_tri[1])
@@ -86,21 +75,23 @@ function lib:raster_triangle(_tri, _render_width, _render_height)
 	local z = count_inside_value(p1.Z, p2.Z, p3.Z, 0, 1)
 
 	local count = math.min(x,y)	
-	--print(count)
 	
 	if count == 0 then
 		return
 	end
 
-	draw_triangle(
+	local col = color.green
+	if count == 1 then
+		col = color.red
+	elseif count == 2 then
+		col = color.yellow
+	end
+
+	gdt.VideoChip0:DrawTriangle(
 			rmath:vec3_to_screen(p1, _render_width, _render_height),
 			rmath:vec3_to_screen(p2, _render_width, _render_height),
 			rmath:vec3_to_screen(p3, _render_width, _render_height),
-				(count == 1 and color.red   ) or 
-				(count == 2 and color.yellow) or 
-				(count == 3 and color.green ) or 
-				(count == 0 and color.blue  ) 
-			)
+			col )
 end
 
 return lib

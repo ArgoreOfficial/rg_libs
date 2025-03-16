@@ -50,6 +50,7 @@ function love.load()
 end
 
 function love.draw()
+	love.graphics.setBackgroundColor(1, 1, 1, 1)
 	love.graphics.setCanvas(canvas)
 	
 	_update_gdt()
@@ -59,5 +60,6 @@ function love.draw()
 	_display_print()
 	
 	love.graphics.setCanvas()
+	love.graphics.setColor(1, 1, 1, 1)
 	love.graphics.draw(canvas,0,0,0,GADGET.Scale,GADGET.Scale)
 end

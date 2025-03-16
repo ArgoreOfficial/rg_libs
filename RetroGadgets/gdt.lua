@@ -10,13 +10,35 @@ _G.gdt = {
     }
 }
 
-function gdt.VideoChip0:Clear( color )
-    love.graphics.clear(color.R/255, color.G/255, color.B/255, color.A/255)
+local function set_color(_color)
+    love.graphics.setColor(_color.R/255, _color.G/255, _color.B/255, _color.A/255)
+end
+
+local function reset_color()
+    love.graphics.setColor(1, 1, 1, 1)
+end
+
+function gdt.VideoChip0:Clear( _color )
+    local r = _color.R / 255.0
+    local g = _color.G / 255.0
+    local b = _color.B / 255.0
+    love.graphics.clear(r,g,b)
 end
 
 function gdt.VideoChip0:DrawLine(_start,_end,_color)
-    love.graphics.setColor(_color.R/255, _color.G/255, _color.B/255, _color.A/255)
+    set_color( _color )
     love.graphics.line(_start.X, _start.Y, _end.X, _end.Y)
+    reset_color()
+end
+
+function gdt.VideoChip0:DrawTriangle(_position1, _position2, _position3, _color)
+    set_color(_color)
+    love.graphics.polygon( 
+        "line", 
+		_position1.X, _position1.Y, 
+		_position2.X, _position2.Y,  
+		_position3.X, _position3.Y )
+    reset_color()
 end
 
 function _G._update_gdt()

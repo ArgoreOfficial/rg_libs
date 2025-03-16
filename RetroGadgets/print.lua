@@ -15,7 +15,7 @@ function _G._display_print()
 end
 
 function _G.print(...)
-    res = ""
+    local res = ""
     local pargs = {...}
     for i,v in ipairs(pargs) do
         res = res .. tostring(v) .. "\t"
