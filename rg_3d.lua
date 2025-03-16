@@ -194,15 +194,10 @@ local function clip_and_raster(_tri, _render_width, _render_height)
 	if count == 0 then return end
 	
 	local draw_list = {}
-
-	if count == 3 then
-		clip_triangles_plane({triangle}, draw_list, vec3(0, 0, 0.1), vec3(0, 0, 1.0))
-		if #draw_list == 0 then return end
-	elseif count == 1 or count == 2 then
-		local tri_list = {}
-		clip_triangles_plane({triangle}, tri_list, vec3(0, 0, 0.1), vec3(0, 0, 1.0))
-		if #tri_list == 0 then return end
-		clip_triangles(tri_list, draw_list)
+	if count == 1 or count == 2 then
+		clip_triangles({triangle}, draw_list)
+	elseif count == 3 then
+		draw_list = {triangle}
 	end
 	
 	local col = color.green
@@ -211,13 +206,16 @@ local function clip_and_raster(_tri, _render_width, _render_height)
 	elseif count == 2 then
 		col = color.yellow
 	end
-
 	for i=1, #draw_list do
+		local z = math.max(draw_list[i][1].Z, draw_list[i][2].Z, draw_list[i][3].Z)
+		local c = 1 - (z / g_far)
+		
+		local col2 = Color(col.R * c, col.G * c, col.B * c)
 		gdt.VideoChip0:FillTriangle(
 			rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height),
 			rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height),
 			rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height),
-			col )
+			col2 )
 	end
 end
 
@@ -227,12 +225,14 @@ function lib:raster_triangle(_tri, _render_width, _render_height)
 	local p3 = lib:to_view(_tri[3])
 	local triangle = {p1,p2,p3}
 
-	local near_count = count_over_value (-p1.Z,-p2.Z,-p3.Z,g_near) -- how many are further than near plane
-	local far_count  = count_under_value(-p1.Z,-p2.Z,-p3.Z,g_far ) -- how many are closer than far plane
+	local near_count = count_under_value(p1.Z,p2.Z,p3.Z,-g_near)
+	if near_count == 0 then return end -- behind near plane
+	
+	local far_count = count_over_value(p1.Z,p2.Z,p3.Z,-g_far)
+	if far_count == 0 then return end -- in front of far plane
+
 	local nearclipped = {}
 	local farclipped  = {}
-
-	if near_count == 0 or far_count == 0 then return end -- outside near and far clip 
 
 	-- clip near plane
 	if near_count == 1 or near_count == 2 then 
