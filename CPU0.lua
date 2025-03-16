@@ -40,22 +40,16 @@ function update()
 		rmath:vec4( 0.5,  0.5, 0.0, 1),
 		rmath:vec4( 0.5, -0.5, 0.0, 1)
 	}
-
+	local s = math.sin(gdt.CPU0.Time * 0.3)
 	-- push_view_transform(pos,rot)
-	rg3d:push_look_at(vec3(0.5,0.6,1), vec3(0,0,0), vec3(0,1,0))
-	
-	-- triangles in screen space
-	local transformed_data = {}
-	for i = 1, #vertex_data do
-		transformed_data[i] = rg3d:to_screen( vertex_data[i], screen_width, screen_height )
-	end
+	rg3d:push_look_at(vec3(1.5,0,2), vec3(0,s*2,0), vec3(0,1,0))
 	
 	-- draw triangles
-	for i = 1, #transformed_data, 3 do
-		draw_triangle(
-			transformed_data[i],
-			transformed_data[i + 1],
-			transformed_data[i + 2]
-		)
+	local p1, p2, p3
+	for i = 1, #vertex_data, 3 do
+		p1 = vertex_data[i]
+		p2 = vertex_data[i + 1]
+		p3 = vertex_data[i + 2]
+		rg3d:raster_triangle({p1,p2,p3},screen_width,screen_height)
 	end
 end
