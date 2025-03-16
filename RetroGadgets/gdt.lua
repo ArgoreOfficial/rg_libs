@@ -41,6 +41,18 @@ function gdt.VideoChip0:DrawTriangle(_position1, _position2, _position3, _color)
     reset_color()
 end
 
+function gdt.VideoChip0:DrawCircle( _position, _radius, _color )
+    set_color(_color)
+    love.graphics.circle("line",_position.X,_position.Y,_radius)
+    reset_color()
+end
+
+function gdt.VideoChip0:FillCircle( _position, _radius, _color )
+    set_color(_color)
+    love.graphics.circle("fill",_position.X,_position.Y,_radius)
+    reset_color()
+end
+
 function _G._update_gdt()
     gdt.CPU0.Time = love.timer.getTime() - _cpu_time_start
 end
