@@ -20,6 +20,13 @@ function lib:vec3_cross( _lhs, _rhs )
     )
 end
 
+function lib:vec3_to_screen(_vec,_width,_height)
+    return vec2(
+        ( _vec.X/2 + 0.5) * _width,
+        (-_vec.Y/2 + 0.5) * _height
+    )
+end
+
 --------------------------------------------------------
 --[[  Vector 4                                        ]]
 --------------------------------------------------------
@@ -109,6 +116,7 @@ function lib:vec4_to_screen(_vec,_width,_height)
         (-n.Y/2 + 0.5) * _height
     )
 end
+
 --------------------------------------------------------
 --[[  Matrix 3x3                                      ]]
 --------------------------------------------------------
