@@ -20,12 +20,19 @@ function lib:vec3_cross( _lhs, _rhs )
     )
 end
 
+function lib:vec3_dot( _lhs, _rhs )
+    return (_lhs.X * _rhs.X) 
+         + (_lhs.Y * _rhs.Y) 
+         + (_lhs.Z * _rhs.Z)
+end
+
 function lib:vec3_to_screen(_vec,_width,_height)
     return vec2(
         ( _vec.X/2 + 0.5) * _width,
         (-_vec.Y/2 + 0.5) * _height
     )
 end
+
 
 --------------------------------------------------------
 --[[  Vector 4                                        ]]
