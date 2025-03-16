@@ -15,7 +15,7 @@ end
 
 rg3d:push_perspective(
 	gdt.VideoChip0.Width / gdt.VideoChip0.Height,    -- screen aspect ratio
-	1.23, -- FOV (radians)
+	1.3, -- FOV (radians)
 	0.1,  -- near clip
 	10    -- far clip
 )
@@ -31,34 +31,28 @@ local vertex_data = {
 
 	rmath:vec4(-0.5,  0.5, 0.0, 1),
 	rmath:vec4( 0.5,  0.5, 0.0, 1),
-	rmath:vec4( 0.5, -0.5, 0.0, 1),
-
-	-- top quad
-	rmath:vec4(-0.5, -0.5 + 1, 0.0, 1),
-	rmath:vec4(-0.5,  0.5 + 1, 0.0, 1),
-	rmath:vec4( 0.5, -0.5 + 1, 0.0, 1),
-
-	rmath:vec4(-0.5,  0.5 + 1, 0.0, 1),
-	rmath:vec4( 0.5,  0.5 + 1, 0.0, 1),
-	rmath:vec4( 0.5, -0.5 + 1, 0.0, 1)
+	rmath:vec4( 0.5, -0.5, 0.0, 1)
 }
 
 -- update function is repeated every time tick
 function update()
 	gdt.VideoChip0:Clear(color.black)
 	
-	local s = math.sin(gdt.CPU0.Time * 0.3)
-	rg3d:push_look_at(vec3(1.5,0,2), vec3(0,s*3,0), vec3(0,1,0))
+	local s = math.sin(gdt.CPU0.Time * 0.7)
+	rg3d:push_look_at(vec3(1.5,0,3), vec3(0,s*5,0), vec3(0,1,0))
 	
-	-- draw triangles
-	for i=1,100 do -- stress test of how many can be rasterized at once
-		-- raster
-		local p1, p2, p3
-		for i = 1, #vertex_data, 3 do
-			p1 = vertex_data[i]
-			p2 = vertex_data[i + 1]
-			p3 = vertex_data[i + 2]
-			rg3d:raster_triangle({p1,p2,p3},screen_width,screen_height)
+	-- draw faces
+	local p1, p2, p3
+	local count = 100
+	local hcount = count/2
+	for y=-hcount,hcount do
+		for x=-hcount,hcount do
+			for tri = 1, #vertex_data, 3 do
+				p1 = vertex_data[tri    ] + rmath:vec4(-x,y,0,0)
+				p2 = vertex_data[tri + 1] + rmath:vec4(-x,y,0,0)
+				p3 = vertex_data[tri + 2] + rmath:vec4(-x,y,0,0)
+				rg3d:raster_triangle({p1,p2,p3},screen_width,screen_height)
+			end
 		end
 	end
 end

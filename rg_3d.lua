@@ -135,8 +135,7 @@ end
 
 local function clip_triangles(_in, _out)
 	local temp, temp2 = {}, {}
-	local d = 0.9
-
+	local d = 1.0
 	clip_triangles_plane(_in, temp,   vec3(-d, 0, 0), vec3( 1, 0, 0)) -- left
 	clip_triangles_plane(temp, temp2, vec3( 0,-d, 0), vec3( 0, 1, 0)) -- top
 	temp = {}
@@ -144,25 +143,59 @@ local function clip_triangles(_in, _out)
 	clip_triangles_plane(temp, _out,  vec3( 0, d, 0), vec3( 0,-1, 0)) -- bottom
 end
 
+local function count_inside_value(_v1,_v2,_v3,_min,_max)
+	local min = _min or -1
+	local max = _max or  1
+	
+	local p1 = (_v1 >= min and _v1 < max) and 1 or 0
+	local p2 = (_v2 >= min and _v2 < max) and 1 or 0
+	local p3 = (_v3 >= min and _v3 < max) and 1 or 0
+
+	local v = p1 + p2 + p3
+	return v
+end
+
 function lib:raster_triangle(_tri, _render_width, _render_height)
 	local p1 = lib:to_clip(_tri[1])
 	local p2 = lib:to_clip(_tri[2])
 	local p3 = lib:to_clip(_tri[3])
 	
-	do return end
+	local x = count_inside_value(p1.X, p2.X, p3.X)
+	local y = count_inside_value(p1.Y, p2.Y, p3.Y)
+	--local z = count_inside_value(p1.Z, p2.Z, p3.Z, 0, 1)
+
+	local count = math.min(x,y)	
+	
+	-- triangle is outside clip space
+	if count == 0 then
+		return
+	end
 
 	local triangle = {p1,p2,p3}
-	local tri_list = {triangle}
-	local clipped_tri_list = {}
-	clip_triangles(tri_list, clipped_tri_list)
+	local draw_list = {}
 
-	local col = color.green
+	if count == 3 then
+		draw_list = {triangle}
+	end
+
+	if count == 1 or count == 2 then
+		local tri_list = {triangle}
+		clip_triangles(tri_list, draw_list)
+
+	end
 	
-	for i=1, #clipped_tri_list do
-		gdt.VideoChip0:DrawTriangle(
-			rmath:vec3_to_screen(clipped_tri_list[i][1], _render_width, _render_height),
-			rmath:vec3_to_screen(clipped_tri_list[i][2], _render_width, _render_height),
-			rmath:vec3_to_screen(clipped_tri_list[i][3], _render_width, _render_height),
+	local col = color.green
+	if count == 1 then
+		col = color.red
+	elseif count == 2 then
+		col = color.yellow
+	end
+
+	for i=1, #draw_list do
+		gdt.VideoChip0:FillTriangle(
+			rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height),
+			rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height),
+			rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height),
 			col )
 	end
 end
