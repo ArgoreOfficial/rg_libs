@@ -32,17 +32,27 @@ function update()
 
 	-- triangle in world space
 	local vertex_data = {
+		-- bottom quad
 		rmath:vec4(-0.5, -0.5, 0.0, 1),
 		rmath:vec4(-0.5,  0.5, 0.0, 1),
 		rmath:vec4( 0.5, -0.5, 0.0, 1),
 
 		rmath:vec4(-0.5,  0.5, 0.0, 1),
 		rmath:vec4( 0.5,  0.5, 0.0, 1),
-		rmath:vec4( 0.5, -0.5, 0.0, 1)
+		rmath:vec4( 0.5, -0.5, 0.0, 1),
+
+		-- top quad
+		rmath:vec4(-0.5, -0.5 + 1, 0.0, 1),
+		rmath:vec4(-0.5,  0.5 + 1, 0.0, 1),
+		rmath:vec4( 0.5, -0.5 + 1, 0.0, 1),
+
+		rmath:vec4(-0.5,  0.5 + 1, 0.0, 1),
+		rmath:vec4( 0.5,  0.5 + 1, 0.0, 1),
+		rmath:vec4( 0.5, -0.5 + 1, 0.0, 1)
 	}
 	local s = math.sin(gdt.CPU0.Time * 0.3)
 	-- push_view_transform(pos,rot)
-	rg3d:push_look_at(vec3(1.5,0,2), vec3(0,s*2,0), vec3(0,1,0))
+	rg3d:push_look_at(vec3(1.5,0,2), vec3(0,s*3,0), vec3(0,1,0))
 	
 	-- draw triangles
 	local p1, p2, p3

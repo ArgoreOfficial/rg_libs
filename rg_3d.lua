@@ -25,7 +25,6 @@ function lib:push_perspective( _aspect, _fov, _near, _far )
     g_use_perspective = true
 end
 
-local project_return_vec = rmath:vec4()
 function lib:project( _vec )
     if g_use_perspective then
 	    return rmath:vec4(
@@ -38,23 +37,19 @@ function lib:project( _vec )
     end
 end
 
-local to_clip_v4  = rmath:vec4() -- world space vec4
-local to_clip_tv4 = rmath:vec4() -- view space vec3
-local to_clip_cv4 = rmath:vec4() -- clip space vec3
 function lib:to_clip(_vec)
-	to_clip_v4  = rmath:vec4(_vec.X, _vec.Y, _vec.Z, 1)
-	to_clip_tv4 = rmath:mat4_transform(g_view_mat, to_clip_v4)
-	to_clip_cv4 = lib:project(to_clip_tv4)
+	local v4  = rmath:vec4(_vec.X, _vec.Y, _vec.Z, 1)
+	local tv4 = rmath:mat4_transform(g_view_mat, v4)
+	local cv4 = lib:project(tv4)
 	return rmath:vec4(
-		to_clip_cv4.X / to_clip_cv4.W,
-		to_clip_cv4.Y / to_clip_cv4.W,
-		to_clip_cv4.Z )
+		cv4.X / cv4.W,
+		cv4.Y / cv4.W,
+		cv4.Z )
 end
 
-local to_screen_sv4 = rmath:vec4() -- screen space vec4
 function lib:to_screen(_vec, _screen_width, _screen_height)
-	to_screen_sv4 = rmath:vec3_to_screen(lib:to_clip(_vec), _screen_width, _screen_height)
-	return vec3(to_screen_sv4.X, to_screen_sv4.Y, to_screen_sv4.Z)
+	local sv4 = rmath:vec3_to_screen(lib:to_clip(_vec), _screen_width, _screen_height)
+	return vec3(sv4.X, sv4.Y, sv4.Z)
 end
 
 local function count_inside_value(_v1,_v2,_v3,_min,_max)
@@ -82,28 +77,30 @@ end
 
 function lib:raster_triangle(_tri, _render_width, _render_height)
 
-	local p1 = lib:to_clip( _tri[1] )
-	local p2 = lib:to_clip( _tri[2] )
-	local p3 = lib:to_clip( _tri[3] )
+	local p1 = lib:to_clip(_tri[1])
+	local p2 = lib:to_clip(_tri[2])
+	local p3 = lib:to_clip(_tri[3])
 	
 	local x = count_inside_value(p1.X, p2.X, p3.X)
 	local y = count_inside_value(p1.Y, p2.Y, p3.Y)
 	local z = count_inside_value(p1.Z, p2.Z, p3.Z, 0, 1)
 
-	-- draw triangles
+	local count = math.min(x,y)	
+	--print(count)
 	
-	local one   = math.min(x,y) == 1
-	local two   = math.min(x,y) == 2
-	local three = math.min(x,y) == 3
-
-	print(math.min(x,y))
-	if math.min(x,y) == 0 then return end
+	if count == 0 then
+		return
+	end
 
 	draw_triangle(
 			rmath:vec3_to_screen(p1, _render_width, _render_height),
 			rmath:vec3_to_screen(p2, _render_width, _render_height),
 			rmath:vec3_to_screen(p3, _render_width, _render_height),
-			(one and color.red) or (two and color.yellow) or (three and color.green) or color.cyan )
+				(count == 1 and color.red   ) or 
+				(count == 2 and color.yellow) or 
+				(count == 3 and color.green ) or 
+				(count == 0 and color.blue  ) 
+			)
 end
 
 return lib
