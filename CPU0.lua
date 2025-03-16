@@ -39,11 +39,11 @@ function update()
 	gdt.VideoChip0:Clear(color.black)
 	
 	local s = math.sin(gdt.CPU0.Time * 0.7)
-	rg3d:push_look_at(vec3(1.5,0,3), vec3(0,s*5,0), vec3(0,1,0))
+	rg3d:push_look_at(vec3(1.5,0,3.5), vec3(0,s*5,0), vec3(0,1,0))
 	
 	-- draw faces
 	local p1, p2, p3
-	local count = 100
+	local count = 50
 	local hcount = count/2
 	for y=-hcount,hcount do
 		for x=-hcount,hcount do

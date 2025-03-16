@@ -9,6 +9,8 @@ local g_perspective_m00 = 1
 local g_perspective_m22 = 1
 local g_perspective_m32 = 1
 local g_use_perspective = true
+local g_near = 0.1
+local g_far = 100
 
 -- look at
 local g_view_mat = {}
@@ -18,6 +20,9 @@ function lib:push_look_at(_eye, _center, _up)
 end
 
 function lib:push_perspective( _aspect, _fov, _near, _far )
+	g_near = _near
+	g_far  = _far
+
     g_perspective_e   = 1.0 / math.tan( _fov / 2.0 )
 	g_perspective_m00 = g_perspective_e / _aspect
 	g_perspective_m22 = ( _far + _near )       / ( _near - _far )
@@ -37,14 +42,21 @@ function lib:project( _vec )
     end
 end
 
-function lib:to_clip(_vec)
+function lib:to_view(_vec)
 	local v4  = rmath:vec4(_vec.X, _vec.Y, _vec.Z, 1)
-	local tv4 = rmath:mat4_transform(g_view_mat, v4)
-	local cv4 = lib:project(tv4)
+	return rmath:mat4_transform(g_view_mat, v4)
+end
+
+function lib:view_to_clip(_vec)
+	local cv4 = lib:project(_vec)
 	return rmath:vec4(
 		cv4.X / cv4.W,
 		cv4.Y / cv4.W,
 		cv4.Z )
+end
+
+function lib:to_clip(_vec)
+	return lib:view_to_clip(lib:to_view(_vec))
 end
 
 function lib:to_screen(_vec, _screen_width, _screen_height)
@@ -140,7 +152,22 @@ local function clip_triangles(_in, _out)
 	clip_triangles_plane(temp, temp2, vec3( 0,-d, 0), vec3( 0, 1, 0)) -- top
 	temp = {}
 	clip_triangles_plane(temp2, temp, vec3( d, 0, 0), vec3(-1, 0, 0)) -- right
+	temp2 = {}
 	clip_triangles_plane(temp, _out,  vec3( 0, d, 0), vec3( 0,-1, 0)) -- bottom
+end
+
+local function count_over_value(_v1,_v2,_v3,_value)
+	local p1 = (_v1 > _value) and 1 or 0
+	local p2 = (_v2 > _value) and 1 or 0
+	local p3 = (_v3 > _value) and 1 or 0
+	return p1 + p2 + p3
+end
+
+local function count_under_value(_v1,_v2,_v3,_value)
+	local p1 = (_v1 < _value) and 1 or 0
+	local p2 = (_v2 < _value) and 1 or 0
+	local p3 = (_v3 < _value) and 1 or 0
+	return p1 + p2 + p3
 end
 
 local function count_inside_value(_v1,_v2,_v3,_min,_max)
@@ -155,33 +182,27 @@ local function count_inside_value(_v1,_v2,_v3,_min,_max)
 	return v
 end
 
-function lib:raster_triangle(_tri, _render_width, _render_height)
-	local p1 = lib:to_clip(_tri[1])
-	local p2 = lib:to_clip(_tri[2])
-	local p3 = lib:to_clip(_tri[3])
-	
+local function clip_and_raster(_tri, _render_width, _render_height)
+	local p1 = _tri[1]
+	local p2 = _tri[2]
+	local p3 = _tri[3]
+	local triangle = {p1,p2,p3}
+
 	local x = count_inside_value(p1.X, p2.X, p3.X)
 	local y = count_inside_value(p1.Y, p2.Y, p3.Y)
-	--local z = count_inside_value(p1.Z, p2.Z, p3.Z, 0, 1)
-
-	local count = math.min(x,y)	
+	local count = math.min(x,y)
+	if count == 0 then return end
 	
-	-- triangle is outside clip space
-	if count == 0 then
-		return
-	end
-
-	local triangle = {p1,p2,p3}
 	local draw_list = {}
 
 	if count == 3 then
-		draw_list = {triangle}
-	end
-
-	if count == 1 or count == 2 then
-		local tri_list = {triangle}
+		clip_triangles_plane({triangle}, draw_list, vec3(0, 0, 0.1), vec3(0, 0, 1.0))
+		if #draw_list == 0 then return end
+	elseif count == 1 or count == 2 then
+		local tri_list = {}
+		clip_triangles_plane({triangle}, tri_list, vec3(0, 0, 0.1), vec3(0, 0, 1.0))
+		if #tri_list == 0 then return end
 		clip_triangles(tri_list, draw_list)
-
 	end
 	
 	local col = color.green
@@ -197,6 +218,42 @@ function lib:raster_triangle(_tri, _render_width, _render_height)
 			rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height),
 			rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height),
 			col )
+	end
+end
+
+function lib:raster_triangle(_tri, _render_width, _render_height)
+	local p1 = lib:to_view(_tri[1])
+	local p2 = lib:to_view(_tri[2])
+	local p3 = lib:to_view(_tri[3])
+	local triangle = {p1,p2,p3}
+
+	local near_count = count_over_value (-p1.Z,-p2.Z,-p3.Z,g_near) -- how many are further than near plane
+	local far_count  = count_under_value(-p1.Z,-p2.Z,-p3.Z,g_far ) -- how many are closer than far plane
+	local nearclipped = {}
+	local farclipped  = {}
+
+	if near_count == 0 or far_count == 0 then return end -- outside near and far clip 
+
+	-- clip near plane
+	if near_count == 1 or near_count == 2 then 
+		clip_triangles_plane({triangle}, nearclipped, vec3(0, 0, -g_near), vec3(0, 0, -1.0))
+	elseif near_count == 3 then 
+		nearclipped = {triangle}
+	end
+
+	-- clip far plane
+	if far_count == 1 or far_count == 2 then
+		clip_triangles_plane(nearclipped, farclipped, vec3(0, 0, -g_far), vec3(0, 0, 1.0))
+	elseif far_count == 3 then
+		farclipped = nearclipped
+	end
+
+	for i = 1, #farclipped do
+		local t = {}
+		t[1] = lib:view_to_clip(farclipped[i][1])
+		t[2] = lib:view_to_clip(farclipped[i][2])
+		t[3] = lib:view_to_clip(farclipped[i][3])
+		clip_and_raster(t, _render_width, _render_height)
 	end
 end
 
