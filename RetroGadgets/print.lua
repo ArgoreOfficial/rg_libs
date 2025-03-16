@@ -8,6 +8,7 @@ function _G._display_print()
         if now - v.t > lifetime then
             table.remove(_print_stack,i)
         else
+            love.graphics.setColor(1,1,1,1)
             love.graphics.print(v.str, 0, (i-1)*16)
         end
     end
