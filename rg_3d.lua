@@ -76,10 +76,22 @@ function lib:raster_triangle(_tri, _render_width, _render_height)
 
 	local count = math.min(x,y)	
 	
+	-- triangle is outside clip space
 	if count == 0 then
 		return
 	end
 
+	-- triangle is inside clip space
+	if count == 3 then
+		gdt.VideoChip0:DrawTriangle(
+			rmath:vec3_to_screen(p1, _render_width, _render_height),
+			rmath:vec3_to_screen(p2, _render_width, _render_height),
+			rmath:vec3_to_screen(p3, _render_width, _render_height),
+			color.green )
+		return
+	end
+
+	-- triangle intersects with clip walls
 	local col = color.green
 	if count == 1 then
 		col = color.red
