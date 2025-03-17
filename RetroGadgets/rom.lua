@@ -6,9 +6,9 @@ local rom_spritesheet_meta = {}
 function rom_spritesheet_meta:__index(_k)
     local ret,img = pcall(love.graphics.newImage, _k)
     if not ret then
-        return _spritesheet(nil, 0, 0)
+        return _spritesheet(nil, nil, 0, 0)
     end
-    return _spritesheet(img, img:getWidth(), img:getHeight() )
+    return _spritesheet(_k, img, img:getWidth(), img:getHeight() )
 end
 
 local function _create_romsystem()

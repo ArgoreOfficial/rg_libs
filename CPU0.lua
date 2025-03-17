@@ -3,7 +3,8 @@
 local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
 
-local spritesheet = gdt.ROM.User.SpriteSheets["vulkan_blue.png"]
+local spritesheet = gdt.ROM.User.SpriteSheets["assets/vulkan_blue.png"]
+local v = require( "assets/vulkan_blue" )
 
 rg3d:push_perspective(
 	gdt.VideoChip0.Width / gdt.VideoChip0.Height,    -- screen aspect ratio
@@ -57,6 +58,6 @@ function update()
 		end
 	end
 
-	gdt.VideoChip0:DrawSprite(vec2(0,0), spritesheet, 0, 0, color.white, color.clear)
 	gdt.VideoChip0:RasterSprite(vec2(1,4),vec2(64,3),vec2(70,50),vec2(2,40),spritesheet,0,0,color.white,color.clear)
+	gdt.VideoChip0:DrawSprite(vec2(0,0), spritesheet, 0, 0, color.white, color.clear)
 end

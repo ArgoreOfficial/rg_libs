@@ -82,13 +82,12 @@ end
 
 function methods:DrawSprite(_position, _spriteSheet, _spriteX, _spriteY, _tintColor, _backgroundColor) 
     _set_color(_tintColor)
-    local sprite_width  = 32
-    local sprite_height = 32
+    
     _spriteSheet._Quad:setViewport(
-        _spriteX * sprite_width, 
-        _spriteY * sprite_height,
-        sprite_width,
-        sprite_height)
+        _spriteX * _spriteSheet._Meta.sprite_width, 
+        _spriteY * _spriteSheet._Meta.sprite_height,
+        _spriteSheet._Meta.sprite_width,
+        _spriteSheet._Meta.sprite_height)
 
 	love.graphics.draw(
         _spriteSheet._Image, _spriteSheet._Quad,
