@@ -40,7 +40,11 @@ end
 function methods:RenderOnScreen() error("unimplemented") end
 function methods:RenderOnBuffer(index) error("unimplemented") end
 function methods:SetRenderBufferSize(index, width, height) error("unimplemented") end
-function methods:SetPixel(position, color) error("unimplemented") end
+function methods:SetPixel(_position, _color)
+    _set_color(_color)
+    love.graphics.rectangle("fill", _position.X, _position.Y, 1, 1)
+    _reset_color()
+end
 function methods:DrawPointGrid(gridOffset, dotsDistance, color) error("unimplemented") end
 
 function methods:DrawLine(_start,_end,_color)

@@ -63,4 +63,5 @@ function update()
 	gdt.VideoChip0:DrawCustomSprite(vec2(72+64,0), spritesheet, vec2(10,0), vec2(74,31), color.white, color.clear)
 	gdt.VideoChip0:FillRect(vec2(12,66), vec2(33,127), color.blue)
 	gdt.VideoChip0:DrawRect(vec2(10,64), vec2(35,129), color.red)
+	gdt.VideoChip0:SetPixel(vec2(10,64), color.white)
 end
