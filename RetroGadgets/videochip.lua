@@ -95,7 +95,15 @@ function methods:DrawSprite(_position, _spriteSheet, _spriteX, _spriteY, _tintCo
     _reset_color()
 end
 
-function methods:DrawCustomSprite(position, spriteSheet, spriteOffset, spriteSize, tintColor, backgroundColor) error("unimplemented") end
+function methods:DrawCustomSprite(_position, _spriteSheet, _spriteOffset, _spriteSize, _tintColor, _backgroundColor) 
+    _set_color(_tintColor)    
+    
+    _spriteSheet._Quad:setViewport(_spriteOffset.X, _spriteOffset.Y, _spriteSize.X, _spriteSize.Y)
+	love.graphics.draw(_spriteSheet._Image, _spriteSheet._Quad, _position.X, _position.Y )
+    
+    _reset_color()    
+end
+
 function methods:DrawText(position, fontSprite, text, textColor, backgroundColor) error("unimplemented") end
 
 function methods:RasterSprite(_position1, _position2, _position3, _position4, _spriteSheet, _spriteX, _spriteY, _tintColor, _backgroundColor)

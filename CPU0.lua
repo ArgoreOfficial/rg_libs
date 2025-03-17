@@ -59,5 +59,6 @@ function update()
 	end
 
 	gdt.VideoChip0:RasterSprite(vec2(1,4),vec2(64,3),vec2(70,50),vec2(2,40),spritesheet,0,0,color.white,color.clear)
-	gdt.VideoChip0:DrawSprite(vec2(0,0), spritesheet, 0, 0, color.white, color.clear)
+	gdt.VideoChip0:DrawSprite(vec2(71,0), spritesheet, 0, 0, color.white, color.clear)
+	gdt.VideoChip0:DrawCustomSprite(vec2(72+64,0), spritesheet, vec2(10,0), vec2(74,31), color.white, color.clear)
 end
