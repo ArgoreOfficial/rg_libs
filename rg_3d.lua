@@ -9,8 +9,8 @@ local g_perspective_m00 = 1
 local g_perspective_m22 = 1
 local g_perspective_m32 = 1
 local g_use_perspective = true
-local g_near = 0.1
-local g_far = 100
+local g_near = 0.5
+local g_far = 50
 
 -- look at
 local g_view_mat = {}
