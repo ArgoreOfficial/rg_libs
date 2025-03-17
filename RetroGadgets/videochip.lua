@@ -69,7 +69,22 @@ function methods:FillTriangle(_position1, _position2, _position3, _color)
     _reset_color()
 end
 
-function methods:DrawSprite(position, spriteSheet, spriteX, spriteY, tintColor, backgroundColor) error("unimplemented") end
+function methods:DrawSprite(_position, _spriteSheet, _spriteX, _spriteY, _tintColor, _backgroundColor) 
+    _set_color(_tintColor)
+    local sprite_width  = 32
+    local sprite_height = 32
+    _spriteSheet._Quad:setViewport(
+        _spriteX * sprite_width, 
+        _spriteY * sprite_height,
+        sprite_width,
+        sprite_height)
+
+	love.graphics.draw(
+        _spriteSheet._Image, _spriteSheet._Quad,
+        _position.X, _position.Y )
+    _reset_color()
+end
+
 function methods:DrawCustomSprite(position, spriteSheet, spriteOffset, spriteSize, tintColor, backgroundColor) error("unimplemented") end
 function methods:DrawText(position, fontSprite, text, textColor, backgroundColor) error("unimplemented") end
 function methods:RasterSprite(position1, position2, position3, position4, spriteSheet, spriteX, spriteY, tintColor, backgroundColor) error("unimplemented") end

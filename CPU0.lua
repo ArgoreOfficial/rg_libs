@@ -3,21 +3,13 @@
 local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
 
-local function debug_triangle(_p1,_p2,_p3)
-	gdt.VideoChip0:DrawLine(_p1,_p2,color.red)
-	gdt.VideoChip0:DrawLine(_p2,_p3,color.red)
-	gdt.VideoChip0:DrawLine(_p3,_p1,color.red)
-end
-
-local function draw_triangle(_p1,_p2,_p3)
-	debug_triangle(_p1,_p2,_p3)
-end
+local spritesheet = gdt.ROM.User.SpriteSheets["vulkan_blue.png"]
 
 rg3d:push_perspective(
 	gdt.VideoChip0.Width / gdt.VideoChip0.Height,    -- screen aspect ratio
 	1.22, -- FOV (radians)
 	0.5,  -- near clip
-	70    -- far clip
+	50    -- far clip
 )
 
 local screen_width  = gdt.VideoChip0.Width
@@ -64,4 +56,6 @@ function update()
 			end
 		end
 	end
+
+	gdt.VideoChip0:DrawSprite(vec2(0,0), spritesheet, 0, 0, color.white, color.clear)
 end

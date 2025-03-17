@@ -11,6 +11,7 @@ _G.gdt = {
         EventChannels = {}
     },
     VideoChip0 = _videochip(),
+    ROM = require("RetroGadgets.rom")
 }
 
 function _G._update_gdt()
