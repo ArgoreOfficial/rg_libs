@@ -5,11 +5,23 @@ local methods = {}
 local meta = {__index = methods}
 
 
+local function _renderbuffer(_w,_h)
+    local rb = {
+        Name = "",
+        Type = "RenderBuffer",
+        Width = _w,
+        Height = _h,
+        _canvas = love.graphics.newCanvas(_w, _h)
+    }
+    rb._canvas:setFilter("nearest","nearest")
+    return rb
+end
+
 local draw_quad_data = {
-	{0,0, 0,0, 1,1,1,1},
-	{1,0, 1,0, 1,1,1,1},
-	{1,1, 1,1, 1,1,1,1},
-	{0,1, 0,1, 1,1,1,1},
+    {0,0, 0,0, 1,1,1,1},
+    {1,0, 1,0, 1,1,1,1},
+    {1,1, 1,1, 1,1,1,1},
+    {0,1, 0,1, 1,1,1,1},
 }
 local draw_quad = love.graphics.newMesh(draw_quad_data,"fan","dynamic")
 
@@ -26,10 +38,20 @@ local function _reset_color()
 end
 
 function _G._videochip()
-    return setmetatable({
+    local screen_buffer = _renderbuffer(GADGET.ScreenWidth, GADGET.ScreenHeight)
+    local vc = setmetatable({
         Width  = GADGET.ScreenWidth,
-        Height = GADGET.ScreenHeight
+        Height = GADGET.ScreenHeight,
+        RenderBuffers = {},
+        _screen_buffer = screen_buffer,
+        _current_renderbuffer = screen_buffer
     }, meta)
+
+    for i=1,8 do
+        table.insert(vc.RenderBuffers, _renderbuffer(vc.Width, vc.Height))
+    end
+
+    return vc
 end
 
 function methods:Clear(_color)
@@ -38,11 +60,13 @@ function methods:Clear(_color)
 end
 
 function methods:RenderOnScreen()
-    error("unimplemented") 
+    self._current_renderbuffer = self._screen_buffer
+    love.graphics.setCanvas(self._screen_buffer._canvas)
 end
 
 function methods:RenderOnBuffer(_index) 
-    error("unimplemented")
+    self._current_renderbuffer = self.RenderBuffers[_index]
+    love.graphics.setCanvas(self.RenderBuffers[_index]._canvas)
 end
 
 function methods:SetRenderBufferSize(_index, _width, _height) 

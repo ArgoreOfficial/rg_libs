@@ -31,10 +31,23 @@ local draw_count = 40
 local cam_dist = 40
 print("drawing " .. tostring(3 * draw_count * draw_count) .. " faces")
 
+local p = 0
+
 -- update function is repeated every time tick
 function update()
-	gdt.VideoChip0:Clear(color.black)
+	gdt.VideoChip0:RenderOnScreen()
+	gdt.VideoChip0:Clear(color.blue)
+
+	if p == 0 then
+		p = 1
+		gdt.VideoChip0:RenderOnBuffer(1)
+	else
+		p = 0
+		gdt.VideoChip0:RenderOnScreen()
+	end
 	
+	gdt.VideoChip0:Clear(color.red)
+
 	cam_dist = math.sin(gdt.CPU0.Time * 1.7) * 20 + 30
 	local s = math.sin(gdt.CPU0.Time * 0.7)
 	local c = math.cos(gdt.CPU0.Time * 0.7)

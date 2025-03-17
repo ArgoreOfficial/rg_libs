@@ -26,8 +26,6 @@ _setup_rg_runtime(CONFIG)
 
 -- LÖVE2D setup
 
-local canvas = love.graphics.newCanvas(GADGET.ScreenWidth, GADGET.ScreenHeight)
-
 -- RG Layer
 require( "RetroGadgets/rg" )
 
@@ -37,29 +35,27 @@ function love.load()
 		GADGET.ScreenHeight * GADGET.Scale,
 		{vsync=1}
 	)
-	
-	canvas:setFilter("nearest","nearest")
 
-	love.graphics.setCanvas(canvas)
 	love.graphics.setLineStyle("rough") 
 	love.graphics.setLineWidth(1) 
 	
+	gdt.VideoChip0:RenderOnScreen()
 	dofile( "CPU0.lua" )
-	
 	love.graphics.setCanvas()
 end
 
 function love.draw()
-	love.graphics.setBackgroundColor(1, 1, 1, 1)
-	love.graphics.setCanvas(canvas)
+	love.graphics.setCanvas(gdt.VideoChip0._current_renderbuffer._canvas)
 	
 	_update_gdt()
 	if update ~= nil then
 		update()
 	end
-	_display_print()
 	
 	love.graphics.setCanvas()
 	love.graphics.setColor(1, 1, 1, 1)
-	love.graphics.draw(canvas,0,0,0,GADGET.Scale,GADGET.Scale)
+	
+	_display_print()
+
+	love.graphics.draw(gdt.VideoChip0._screen_buffer._canvas,0,0,0,GADGET.Scale,GADGET.Scale)
 end
