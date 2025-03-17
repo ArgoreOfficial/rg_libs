@@ -69,10 +69,10 @@ function methods:DrawRect(_position1, _position2, _color)
     _set_color(_color)
     love.graphics.rectangle(
         "line",
-        _position1.X,
-        _position1.Y,
-        _position2.X - _position1.X,
-        _position2.Y - _position1.Y)
+        _position1.X + 1,
+        _position1.Y + 1,
+        _position2.X - (_position1.X+1),
+        _position2.Y - (_position1.Y+1))
     _reset_color()
 end
 
@@ -80,10 +80,10 @@ function methods:FillRect(_position1, _position2, _color)
     _set_color(_color)
     love.graphics.rectangle(
         "fill",
-        _position1.X - 1,
-        _position1.Y - 1,
-        _position2.X - (_position1.X - 1),
-        _position2.Y - (_position1.Y - 1))
+        _position1.X,
+        _position1.Y,
+        _position2.X - _position1.X,
+        _position2.Y - _position1.Y)
     _reset_color()
 end
 
