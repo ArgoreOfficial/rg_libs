@@ -1,4 +1,4 @@
 return {
-    sprite_width  = 52,
+    sprite_width  = 64,
     sprite_height = 64
 }
