@@ -61,7 +61,17 @@ function methods:FillCircle(_position, _radius, _color)
     _reset_color()
 end
 
-function methods:DrawRect(_position1, _position2, _color) error("unimplemented") end
+function methods:DrawRect(_position1, _position2, _color)
+    _set_color(_color)
+    love.graphics.rectangle(
+        "line",
+        _position1.X,
+        _position1.Y,
+        _position2.X - _position1.X,
+        _position2.Y - _position1.Y)
+    _reset_color()
+end
+
 function methods:FillRect(_position1, _position2, _color) error("unimplemented") end
 
 function methods:DrawTriangle(_position1, _position2, _position3, _color)
