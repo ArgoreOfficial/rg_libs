@@ -55,7 +55,6 @@ function love.draw()
 	love.graphics.setCanvas()
 	love.graphics.setColor(1, 1, 1, 1)
 	
-	_display_print()
-
 	love.graphics.draw(gdt.VideoChip0._screen_buffer._canvas,0,0,0,GADGET.Scale,GADGET.Scale)
+	_display_print()
 end
