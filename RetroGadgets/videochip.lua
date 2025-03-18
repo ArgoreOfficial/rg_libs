@@ -166,8 +166,25 @@ function methods:RasterSprite(_position1, _position2, _position3, _position4, _s
     love.graphics.draw(draw_quad,0,0)
 end
 
-function methods:RasterCustomSprite(position1, position2, position3, position4, spriteSheet, spriteOffset, spriteSize, tintColor, backgroundColor) 
-    rg_unimplemented()
+function methods:RasterCustomSprite(_position1, _position2, _position3, _position4, _spriteSheet, _spriteOffset, _spriteSize, _tintColor, _backgroundColor) 
+    _set_color(_tintColor)    
+    
+    _spriteSheet._Quad:setViewport(_spriteOffset.X, _spriteOffset.Y, _spriteSize.X, _spriteSize.Y)
+	
+    local x = _spriteOffset.X / _spriteSheet._Image:getWidth()
+    local y = _spriteOffset.Y / _spriteSheet._Image:getHeight()
+    local w = _spriteSize.X / _spriteSheet._Image:getWidth()
+    local h = _spriteSize.Y / _spriteSheet._Image:getHeight()
+
+    draw_quad:setVertex(1, _position1.X, _position1.Y, x,   y,   1, 1, 1, 1)
+    draw_quad:setVertex(2, _position2.X, _position2.Y, x+w, y,   1, 1, 1, 1)
+    draw_quad:setVertex(3, _position3.X, _position3.Y, x+w, y+h, 1, 1, 1, 1)
+    draw_quad:setVertex(4, _position4.X, _position4.Y, x,   y+h, 1, 1, 1, 1)
+    draw_quad:setTexture(_spriteSheet._Image)
+
+    love.graphics.draw(draw_quad,0,0)
+
+    _reset_color()    
 end
 
 function methods:DrawRenderBuffer(_position, _renderBuffer, _width, _height)
