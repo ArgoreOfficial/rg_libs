@@ -35,22 +35,13 @@ local p = 0
 
 -- update function is repeated every time tick
 function update()
-	gdt.VideoChip0:RenderOnScreen()
+	gdt.VideoChip0:RenderOnBuffer(1)
 	gdt.VideoChip0:Clear(color.blue)
+	local t = gdt.CPU0.Time
 
-	if p == 0 then
-		p = 1
-		gdt.VideoChip0:RenderOnBuffer(1)
-	else
-		p = 0
-		gdt.VideoChip0:RenderOnScreen()
-	end
-	
-	gdt.VideoChip0:Clear(color.red)
-
-	cam_dist = math.sin(gdt.CPU0.Time * 1.7) * 20 + 30
-	local s = math.sin(gdt.CPU0.Time * 0.7)
-	local c = math.cos(gdt.CPU0.Time * 0.7)
+	cam_dist = math.sin(t * 1.7) * 20 + 30
+	local s  = math.sin(t * 0.7)
+	local c  = math.cos(t * 0.7)
 	rg3d:push_look_at(
 		vec3(c * cam_dist, c * cam_dist * 0.75, s * cam_dist), 
 		vec3(0,0,0),
@@ -73,8 +64,21 @@ function update()
 
 	gdt.VideoChip0:RasterSprite(vec2(1,4),vec2(64,3),vec2(70,50),vec2(2,40),spritesheet,0,0,color.white,color.clear)
 	gdt.VideoChip0:DrawSprite(vec2(71,0), spritesheet, 0, 0, color.white, color.clear)
-	gdt.VideoChip0:DrawCustomSprite(vec2(72+64,0), spritesheet, vec2(10,0), vec2(74,31), color.white, color.clear)
+	gdt.VideoChip0:DrawCustomSprite(vec2(72+64,0), spritesheet, vec2(math.sin(t*2) * 15 + 15,0), vec2(74,31), color.white, color.clear)
+
 	gdt.VideoChip0:FillRect(vec2(12,66), vec2(33,127), color.blue)
 	gdt.VideoChip0:DrawRect(vec2(10,64), vec2(35,129), color.red)
 	gdt.VideoChip0:SetPixel(vec2(10,64), color.white)
+	
+	gdt.VideoChip0:RenderOnScreen()
+	gdt.VideoChip0:Clear(color.black)
+	
+	local rb1 = gdt.VideoChip0.RenderBuffers[1]
+	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),rb1,rb1.Width,rb1.Height)
+	gdt.VideoChip0:RasterRenderBuffer(
+		vec2(301, 4),
+		vec2(364, 3),
+		vec2(370,50),
+		vec2(302,40),
+		rb1)
 end

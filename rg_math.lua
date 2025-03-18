@@ -349,4 +349,12 @@ function lib:mat4_look_at(_eye, _center, _up)
     return mat
 end
 
+function lib:area_of_four_points(_a,_b,_c,_d)
+    local v = (_a.X*_b.Y - _a.Y*_b.X) + 
+              (_b.X*_c.Y - _b.Y*_c.X) + 
+              (_c.X*_d.Y - _c.Y*_d.X) +
+              (_d.X*_a.Y - _d.Y*_a.X)
+    return v / 2
+end
+
 return lib

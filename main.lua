@@ -45,7 +45,7 @@ function love.load()
 end
 
 function love.draw()
-	love.graphics.setCanvas(gdt.VideoChip0._current_renderbuffer._canvas)
+	love.graphics.setCanvas(gdt.VideoChip0._current_renderbuffer._Canvas)
 	
 	_update_gdt()
 	if update ~= nil then
@@ -55,6 +55,6 @@ function love.draw()
 	love.graphics.setCanvas()
 	love.graphics.setColor(1, 1, 1, 1)
 	
-	love.graphics.draw(gdt.VideoChip0._screen_buffer._canvas,0,0,0,GADGET.Scale,GADGET.Scale)
+	love.graphics.draw(gdt.VideoChip0._screen_buffer._Canvas,0,0,0,GADGET.Scale,GADGET.Scale)
 	_display_print()
 end

@@ -1,21 +1,9 @@
+require "RetroGadgets.renderbuffer"
 
 -- https://docs.retrogadgets.game/modules/VideoChip.html
 
 local methods = {}
 local meta = {__index = methods}
-
-
-local function _renderbuffer(_w,_h)
-    local rb = {
-        Name = "",
-        Type = "RenderBuffer",
-        Width = _w,
-        Height = _h,
-        _canvas = love.graphics.newCanvas(_w, _h)
-    }
-    rb._canvas:setFilter("nearest","nearest")
-    return rb
-end
 
 local draw_quad_data = {
     {0,0, 0,0, 1,1,1,1},
@@ -61,16 +49,16 @@ end
 
 function methods:RenderOnScreen()
     self._current_renderbuffer = self._screen_buffer
-    love.graphics.setCanvas(self._screen_buffer._canvas)
+    love.graphics.setCanvas(self._screen_buffer._Canvas)
 end
 
 function methods:RenderOnBuffer(_index) 
     self._current_renderbuffer = self.RenderBuffers[_index]
-    love.graphics.setCanvas(self.RenderBuffers[_index]._canvas)
+    love.graphics.setCanvas(self.RenderBuffers[_index]._Canvas)
 end
 
 function methods:SetRenderBufferSize(_index, _width, _height) 
-    error("unimplemented") 
+    gdt.VideoChip0.RenderBuffers[_index] = _renderbuffer(math.min(_width, 4096), math.min(_height, 4096))
 end
 
 function methods:SetPixel(_position, _color)
@@ -80,7 +68,7 @@ function methods:SetPixel(_position, _color)
 end
 
 function methods:DrawPointGrid(_gridOffset, _dotsDistance, _color)
-    error("unimplemented") 
+    rg_unimplemented()
 end
 
 function methods:DrawLine(_start,_end,_color)
@@ -163,7 +151,9 @@ function methods:DrawCustomSprite(_position, _spriteSheet, _spriteOffset, _sprit
     _reset_color()    
 end
 
-function methods:DrawText(position, fontSprite, text, textColor, backgroundColor) error("unimplemented") end
+function methods:DrawText(position, fontSprite, text, textColor, backgroundColor)
+    
+end
 
 function methods:RasterSprite(_position1, _position2, _position3, _position4, _spriteSheet, _spriteX, _spriteY, _tintColor, _backgroundColor)
     local r,g,b,a = _color_to_rgba(_tintColor)
@@ -176,8 +166,34 @@ function methods:RasterSprite(_position1, _position2, _position3, _position4, _s
     love.graphics.draw(draw_quad,0,0)
 end
 
-function methods:RasterCustomSprite(position1, position2, position3, position4, spriteSheet, spriteOffset, spriteSize, tintColor, backgroundColor) error("unimplemented") end
-function methods:DrawRenderBuffer(position, renderBuffer, width, height) error("unimplemented") end
-function methods:RasterRenderBuffer(position1, position2 , position3, position4, renderBuffer) error("unimplemented") end
-function methods:SetPixelData(pixelData) error("unimplemented") end
-function methods:BlitPixelData(position, pixelData) error("unimplemented") end
+function methods:RasterCustomSprite(position1, position2, position3, position4, spriteSheet, spriteOffset, spriteSize, tintColor, backgroundColor) 
+    rg_unimplemented()
+end
+
+function methods:DrawRenderBuffer(_position, _renderBuffer, _width, _height)
+    love.graphics.draw(
+        _renderBuffer._Canvas, 
+        _position.X, _position.Y,
+        0, 
+        _width/_renderBuffer.Width, 
+        _height/_renderBuffer.Height
+    )
+end
+
+function methods:RasterRenderBuffer(_position1, _position2 , _position3, _position4, _renderBuffer)
+    draw_quad:setVertex(1, _position1.X, _position1.Y, 0.0, 0.0, 1, 1, 1, 1)
+    draw_quad:setVertex(2, _position2.X, _position2.Y, 1.0, 0.0, 1, 1, 1, 1)
+    draw_quad:setVertex(3, _position3.X, _position3.Y, 1.0, 1.0, 1, 1, 1, 1)
+    draw_quad:setVertex(4, _position4.X, _position4.Y, 0.0, 1.0, 1, 1, 1, 1)
+    draw_quad:setTexture(_renderBuffer._Canvas)
+
+    love.graphics.draw(draw_quad,0,0)
+end
+
+function methods:SetPixelData(pixelData)
+    rg_unimplemented()
+end
+
+function methods:BlitPixelData(position, pixelData)
+    rg_unimplemented()
+end
