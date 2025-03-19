@@ -246,14 +246,10 @@ local function clip_and_raster_triangle(
 	end
 
 	for i=1, #draw_list do
-		local z = math.max(draw_list[i][1].Z, draw_list[i][2].Z, draw_list[i][3].Z)
-		local c = 1 - (z / g_far)
-		
-		local col2 = Color(col.R * c, col.G * c, col.B * c)
 		g_raster_tri_func(
-			rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height),
-			rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height),
-			rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height))
+			rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
+			rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
+			rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z))
 	end
 end
 
@@ -286,10 +282,10 @@ local function clip_and_raster_quad(
 	
 	if left_clip == 4 and right_clip == 4 and top_clip == 4 and bottom_clip == 4 then
 		g_raster_quad_func(
-			rmath:vec3_to_screen(p1, _render_width, _render_height),
-			rmath:vec3_to_screen(p2, _render_width, _render_height),
-			rmath:vec3_to_screen(p3, _render_width, _render_height),
-			rmath:vec3_to_screen(p4, _render_width, _render_height))
+			rmath:vec3_to_screen(p1, _render_width, _render_height, p1.Z),
+			rmath:vec3_to_screen(p2, _render_width, _render_height, p2.Z),
+			rmath:vec3_to_screen(p3, _render_width, _render_height, p3.Z),
+			rmath:vec3_to_screen(p4, _render_width, _render_height, p4.Z))
 	else
 		clip_and_raster_triangle({p1,p2,p3}, _render_width, _render_height )
 		clip_and_raster_triangle({p1,p3,p4}, _render_width, _render_height )

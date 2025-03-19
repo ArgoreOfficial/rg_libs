@@ -56,10 +56,11 @@ function lib:vec3_dot( _lhs, _rhs )
          + (_lhs.Z * _rhs.Z)
 end
 
-function lib:vec3_to_screen(_vec,_width,_height)
-    return vec2(
+function lib:vec3_to_screen(_vec,_width,_height,_depth)
+    return vec3(
         ( _vec.X/2 + 0.5) * _width,
-        (-_vec.Y/2 + 0.5) * _height
+        (-_vec.Y/2 + 0.5) * _height,
+        _depth or 0
     )
 end
 
