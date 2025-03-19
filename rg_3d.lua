@@ -156,18 +156,20 @@ local function clip_triangles(_in, _out)
 	clip_triangles_plane(temp, _out,  vec3( 0, d, 0), vec3( 0,-1, 0)) -- bottom
 end
 
-local function count_over_value(_v1,_v2,_v3,_value)
+local function count_over_value(_value,_v1,_v2,_v3,_v4)
 	local p1 = (_v1 > _value) and 1 or 0
 	local p2 = (_v2 > _value) and 1 or 0
-	local p3 = (_v3 > _value) and 1 or 0
-	return p1 + p2 + p3
+	local p3 = _v3 and ((_v3 > _value) and 1 or 0) or 0
+	local p4 = _v4 and ((_v4 > _value) and 1 or 0) or 0
+	return p1 + p2 + p3 + p4
 end
 
-local function count_under_value(_v1,_v2,_v3,_value)
+local function count_under_value(_value,_v1,_v2,_v3,_v4)
 	local p1 = (_v1 < _value) and 1 or 0
 	local p2 = (_v2 < _value) and 1 or 0
-	local p3 = (_v3 < _value) and 1 or 0
-	return p1 + p2 + p3
+	local p3 = _v3 and ((_v3 < _value) and 1 or 0) or 0
+	local p4 = _v4 and ((_v4 < _value) and 1 or 0) or 0
+	return p1 + p2 + p3 + p4
 end
 
 local function count_inside_value(_v1,_v2,_v3,_min,_max)
@@ -197,16 +199,16 @@ local function clip_and_raster(
 	local p3 = _tri[3]
 	local triangle = {p1,p2,p3}
 
-	local left_clip = _left_clip_count or count_over_value(p1.X, p2.X, p3.X, -1)
+	local left_clip = _left_clip_count or count_over_value(-1, p1.X, p2.X, p3.X)
 	if left_clip == 0 then return end
 	
-	local right_clip = _right_clip_count or count_under_value(p1.X, p2.X, p3.X, 1)
+	local right_clip = _right_clip_count or count_under_value(1, p1.X, p2.X, p3.X)
 	if right_clip == 0 then return end
 
-	local top_clip = _top_clip_count or count_under_value(p1.Y, p2.Y, p3.Y, 1)
+	local top_clip = _top_clip_count or count_under_value(1, p1.Y, p2.Y, p3.Y)
 	if top_clip == 0 then return end
 	
-	local bottom_clip = _bottom_clip_count or count_over_value(p1.Y, p2.Y, p3.Y, -1)
+	local bottom_clip = _bottom_clip_count or count_over_value(-1, p1.Y, p2.Y, p3.Y)
 	if bottom_clip == 0 then return end
 	
 	local col = color.green
@@ -238,10 +240,10 @@ function lib:raster_triangle(_tri, _render_width, _render_height)
 	local p3 = lib:to_view(_tri[3])
 	local triangle = {p1,p2,p3}
 
-	local near_count = count_under_value(p1.Z,p2.Z,p3.Z,-g_near)
+	local near_count = count_under_value(-g_near, p1.Z, p2.Z, p3.Z)
 	if near_count == 0 then return end -- behind near plane
 	
-	local far_count = count_over_value(p1.Z,p2.Z,p3.Z,-g_far)
+	local far_count = count_over_value(-g_far, p1.Z, p2.Z, p3.Z)
 	if far_count == 0 then return end -- in front of far plane
 
 	local nearclipped = {}
