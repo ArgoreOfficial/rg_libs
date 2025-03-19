@@ -1,5 +1,4 @@
 local _cpu_time_start = love.timer.getTime()
-local _cpu_time_last = love.timer.getTime()
 
 require("RetroGadgets.videochip")
 
@@ -14,10 +13,8 @@ _G.gdt = {
     ROM = require("RetroGadgets.rom")
 }
 
-function _G._update_gdt()
+function _G._update_gdt(_dt)
     local now = love.timer.getTime()
     gdt.CPU0.Time      = now - _cpu_time_start
-    gdt.CPU0.DeltaTime = now - _cpu_time_last
-    
-    _cpu_time_last = now
+    gdt.CPU0.DeltaTime = _dt
 end

@@ -44,10 +44,13 @@ function love.load()
 	love.graphics.setCanvas()
 end
 
+function love.update(_dt)
+	_update_gdt(_dt)
+end
+
 function love.draw()
 	love.graphics.setCanvas(gdt.VideoChip0._current_renderbuffer._Canvas)
 	
-	_update_gdt()
 	if update ~= nil then
 		update()
 	end

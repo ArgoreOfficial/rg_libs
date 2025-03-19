@@ -151,8 +151,8 @@ function methods:DrawCustomSprite(_position, _spriteSheet, _spriteOffset, _sprit
     _reset_color()    
 end
 
-function methods:DrawText(position, fontSprite, text, textColor, backgroundColor)
-    
+function methods:DrawText(_position, _fontSprite, _text, _textColor, _backgroundColor)
+    rg_unimplemented()
 end
 
 function methods:RasterSprite(_position1, _position2, _position3, _position4, _spriteSheet, _spriteX, _spriteY, _tintColor, _backgroundColor)
@@ -207,10 +207,10 @@ function methods:RasterRenderBuffer(_position1, _position2 , _position3, _positi
     love.graphics.draw(draw_quad,0,0)
 end
 
-function methods:SetPixelData(pixelData)
+function methods:SetPixelData(_pixelData)
     rg_unimplemented()
 end
 
-function methods:BlitPixelData(position, pixelData)
+function methods:BlitPixelData(_position, _pixelData)
     rg_unimplemented()
 end
