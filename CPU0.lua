@@ -146,18 +146,72 @@ function mip_test(_p1,_p2,_p3,_p4)
 		color.white,color.clear)
 end
 
+local cam_pos = vec3(10,10,10)
+local cam_pitch = 0
+local cam_yaw   = rmath.const.PI
+local cam_dir = vec3(0,0,-1)
+
+local function rot_to_dir(_pitch, _yaw)
+	return vec3(
+		math.cos(_yaw)*math.cos(_pitch),
+		math.sin(_pitch),
+		math.sin(_yaw)*math.cos(_pitch)
+	)
+end
+
+local function update_dir(_v)
+	local wish_pitch = 0
+	local wish_yaw   = 0
+
+	if love.keyboard.isDown("left")  then wish_yaw = wish_yaw - 1 end
+	if love.keyboard.isDown("right") then wish_yaw = wish_yaw + 1 end
+
+	if love.keyboard.isDown("up")   then wish_pitch = wish_pitch + 1 end
+	if love.keyboard.isDown("down") then wish_pitch = wish_pitch - 1 end
+
+	cam_pitch = cam_pitch + wish_pitch * _v
+	cam_yaw   = cam_yaw   + wish_yaw   * _v
+	cam_pitch = math.min(cam_pitch,  rmath:radians(85))
+	cam_pitch = math.max(cam_pitch, -rmath:radians(85))
+	cam_dir = rot_to_dir(cam_pitch, cam_yaw)
+end
+
+local function get_move_wish()
+	local move_input = vec3(0,0,0)
+	
+	if love.keyboard.isDown('w') then move_input = move_input + vec3(0,0, 1) end
+	if love.keyboard.isDown('s') then move_input = move_input + vec3(0,0,-1) end
+
+	if love.keyboard.isDown('a') then move_input = move_input + vec3(-1,0,0) end
+	if love.keyboard.isDown('d') then move_input = move_input + vec3( 1,0,0) end
+
+	if love.keyboard.isDown("space")  then move_input = move_input + vec3(0, 1,0) end
+	if love.keyboard.isDown("lshift") then move_input = move_input + vec3(0,-1,0) end
+
+	local up      = vec3(0,1,0)
+	local right   = rot_to_dir(0, cam_yaw + rmath:radians(90))
+	local forward = rot_to_dir(cam_pitch, cam_yaw)
+
+	local move_wish = right   * move_input.X + 
+	                  up      * move_input.Y + 
+	                  forward * move_input.Z
+
+	return rmath:vec3_normalize(move_wish)
+end
+
 -- update function is repeated every time tick
 function update()
 	gdt.VideoChip0:RenderOnBuffer(1)
 	gdt.VideoChip0:Clear(color.blue)
 	local t = gdt.CPU0.Time
+	local dt = gdt.CPU0.DeltaTime
 
-	cam_dist = math.sin(t * 1.7) * 20 + 30
-	local s  = math.sin(t * 0.7)
-	local c  = math.cos(t * 0.7)
+	update_dir(dt)
+	cam_pos = cam_pos + get_move_wish() * dt * 10
+	
 	rg3d:push_look_at(
-		vec3(c * cam_dist, c * cam_dist * 0.75, s * cam_dist), 
-		vec3(0,0,0),
+		cam_pos, 
+		cam_pos + cam_dir,
 		vec3(0,1,0))
 	
 	-- draw faces
@@ -189,5 +243,5 @@ function update()
 	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),rb1,rb1.Width,rb1.Height)
 	gdt.VideoChip0:RasterRenderBuffer(p1,p2,p3,p4,rb1)
 
-	mip_test(p1,p2,p3,p4)
+	--mip_test(p1,p2,p3,p4)
 end
