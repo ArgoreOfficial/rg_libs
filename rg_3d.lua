@@ -2,6 +2,8 @@ local lib = {}
 
 local rmath = require("rg_math")
 
+local g_clip_margin = 2
+
 -- global rg3d state
 -- perspective
 local g_perspective_e   = 1
@@ -14,6 +16,20 @@ local g_far = 50
 
 -- look at
 local g_view_mat = {}
+
+-- raster
+local g_debug_texture = gdt.ROM.User.SpriteSheets["assets/debug.png"]
+
+local function default_raster_tri(_p1,_p2,_p3)
+	gdt.VideoChip0:FillTriangle( _p1, _p2, _p3, Color(0,0,153) )
+end
+
+local function default_raster_quad(_p1,_p2,_p3,_p4)
+	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,g_debug_texture,vec2(0,0),vec2(64,64),color.white,color.clear)
+end
+
+local g_raster_tri_func  = default_raster_tri
+local g_raster_quad_func = default_raster_quad
 
 function lib:push_look_at(_eye, _center, _up)
 	g_view_mat = rmath:mat4_look_at(_eye, _center, _up)
@@ -28,6 +44,14 @@ function lib:push_perspective( _aspect, _fov, _near, _far )
 	g_perspective_m22 = ( _far + _near )       / ( _near - _far )
 	g_perspective_m32 = ( 2.0 * _far * _near ) / ( _near - _far )
     g_use_perspective = true
+end
+
+function lib:set_quad_func( _func )
+	g_raster_quad_func = _func or default_raster_quad
+end
+
+function lib:set_tri_func( _func )
+	g_raster_tri_func = _func or default_raster_tri
 end
 
 function lib:project( _vec )
@@ -184,7 +208,7 @@ local function count_inside_value(_v1,_v2,_v3,_min,_max)
 	return v
 end
 
-local function clip_and_raster(
+local function clip_and_raster_triangle(
 	_tri,               -- {p1, p2, p3}
 	_render_width, 
 	_render_height, 
@@ -198,17 +222,17 @@ local function clip_and_raster(
 	local p2 = _tri[2]
 	local p3 = _tri[3]
 	local triangle = {p1,p2,p3}
-
-	local left_clip = _left_clip_count or count_over_value(-1, p1.X, p2.X, p3.X)
+	
+	local left_clip = _left_clip_count or count_over_value(-g_clip_margin, p1.X, p2.X, p3.X)
 	if left_clip == 0 then return end
 	
-	local right_clip = _right_clip_count or count_under_value(1, p1.X, p2.X, p3.X)
+	local right_clip = _right_clip_count or count_under_value(g_clip_margin, p1.X, p2.X, p3.X)
 	if right_clip == 0 then return end
 
-	local top_clip = _top_clip_count or count_under_value(1, p1.Y, p2.Y, p3.Y)
+	local top_clip = _top_clip_count or count_under_value(g_clip_margin, p1.Y, p2.Y, p3.Y)
 	if top_clip == 0 then return end
 	
-	local bottom_clip = _bottom_clip_count or count_over_value(-1, p1.Y, p2.Y, p3.Y)
+	local bottom_clip = _bottom_clip_count or count_over_value(-g_clip_margin, p1.Y, p2.Y, p3.Y)
 	if bottom_clip == 0 then return end
 	
 	local col = color.green
@@ -226,11 +250,49 @@ local function clip_and_raster(
 		local c = 1 - (z / g_far)
 		
 		local col2 = Color(col.R * c, col.G * c, col.B * c)
-		gdt.VideoChip0:FillTriangle(
+		g_raster_tri_func(
 			rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height),
 			rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height),
-			rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height),
-			col2 )
+			rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height))
+	end
+end
+
+local function clip_and_raster_quad(
+	_quad,               -- {p1, p2, p3, p3}
+	_render_width, 
+	_render_height, 
+
+	_left_clip_count,   -- optional: use these if you've precomputed 
+	_right_clip_count,  -- which points are inside the view frustum
+	_top_clip_count,    -- 
+	_bottom_clip_count  -- 
+)
+	local p1 = _quad[1]
+	local p2 = _quad[2]
+	local p3 = _quad[3]
+	local p4 = _quad[4]
+	
+	local left_clip = _left_clip_count or count_over_value(-g_clip_margin, p1.X, p2.X, p3.X, p4.X)
+	if left_clip == 0 then return end
+	
+	local right_clip = _right_clip_count or count_under_value(g_clip_margin, p1.X, p2.X, p3.X, p4.X)
+	if right_clip == 0 then return end
+
+	local top_clip = _top_clip_count or count_under_value(g_clip_margin, p1.Y, p2.Y, p3.Y, p4.Y)
+	if top_clip == 0 then return end
+	
+	local bottom_clip = _bottom_clip_count or count_over_value(-g_clip_margin, p1.Y, p2.Y, p3.Y, p4.Y)
+	if bottom_clip == 0 then return end
+	
+	if left_clip == 4 and right_clip == 4 and top_clip == 4 and bottom_clip == 4 then
+		g_raster_quad_func(
+			rmath:vec3_to_screen(p1, _render_width, _render_height),
+			rmath:vec3_to_screen(p2, _render_width, _render_height),
+			rmath:vec3_to_screen(p3, _render_width, _render_height),
+			rmath:vec3_to_screen(p4, _render_width, _render_height))
+	else
+		clip_and_raster_triangle({p1,p2,p3}, _render_width, _render_height )
+		clip_and_raster_triangle({p1,p3,p4}, _render_width, _render_height )
 	end
 end
 
@@ -268,7 +330,32 @@ function lib:raster_triangle(_tri, _render_width, _render_height)
 		t[1] = lib:view_to_clip(farclipped[i][1])
 		t[2] = lib:view_to_clip(farclipped[i][2])
 		t[3] = lib:view_to_clip(farclipped[i][3])
-		clip_and_raster(t, _render_width, _render_height)
+		clip_and_raster_triangle(t, _render_width, _render_height)
+	end
+end
+
+function lib:raster_quad(_quad, _render_width, _render_height)
+	local p1 = lib:to_view(_quad[1])
+	local p2 = lib:to_view(_quad[2])
+	local p3 = lib:to_view(_quad[3])
+	local p4 = lib:to_view(_quad[4])
+	
+	local near_count = count_under_value(-g_near, p1.Z, p2.Z, p3.Z, p4.Z)
+	if near_count == 0 then return end -- behind near plane
+	
+	local far_count = count_over_value(-g_far, p1.Z, p2.Z, p3.Z, p4.Z)
+	if far_count == 0 then return end -- in front of far plane
+
+	if near_count == 4 and far_count == 4 then -- quad is fully inside
+		local t1 = lib:view_to_clip(p1)
+		local t2 = lib:view_to_clip(p2)
+		local t3 = lib:view_to_clip(p3)
+		local t4 = lib:view_to_clip(p4)
+		
+		clip_and_raster_quad({t1,t2,t3,t4}, _render_width, _render_height)
+	else
+		lib:raster_triangle({_quad[1],_quad[2],_quad[3]},_render_width,_render_height)
+		lib:raster_triangle({_quad[1],_quad[3],_quad[4]},_render_width,_render_height)
 	end
 end
 

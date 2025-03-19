@@ -4,7 +4,7 @@
 
 GADGET = {
 	ScreenWidth = 384,
-	ScreenHeight = 492,
+	ScreenHeight = 292,
 	Scale = 2
 }
 

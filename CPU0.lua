@@ -21,9 +21,6 @@ local vertex_data = {
 	-- bottom quad
 	rmath:vec4(-0.5, 0.0, -0.5, 1),
 	rmath:vec4(-0.5, 0.0,  0.5, 1),
-	rmath:vec4( 0.5, 0.0, -0.5, 1),
-
-	rmath:vec4(-0.5, 0.0,  0.5, 1),
 	rmath:vec4( 0.5, 0.0,  0.5, 1),
 	rmath:vec4( 0.5, 0.0, -0.5, 1)
 }
@@ -199,16 +196,29 @@ local function get_move_wish()
 	return rmath:vec3_normalize(move_wish)
 end
 
+local function raster_quad(_p1,_p2,_p3,_p4)
+	gdt.VideoChip0:FillTriangle( _p1, _p2, _p3, color.blue )
+	gdt.VideoChip0:FillTriangle( _p1, _p3, _p4, color.blue )
+end
+
+local function raster_quad_sprite(_p1,_p2,_p3,_p4)
+	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,vec2(0,0),vec2(200,200),color.white,color.clear)
+end
+
+local function raster_tri_sprite(_p1,_p2,_p3)
+	gdt.VideoChip0:DrawTriangle(_p1,_p2,_p3,color.white)
+end
+
 -- update function is repeated every time tick
 function update()
 	gdt.VideoChip0:RenderOnBuffer(1)
-	gdt.VideoChip0:Clear(color.blue)
+	gdt.VideoChip0:Clear(color.cyan)
 	local t = gdt.CPU0.Time
 	local dt = gdt.CPU0.DeltaTime
 
 	update_dir(dt)
-	local speed = 10 
-	if love.keyboard.isDown("lctrl") then speed = speed * 2 end
+	local speed = 5
+	if love.keyboard.isDown("lctrl") then speed = speed * 4 end
 	cam_pos = cam_pos + get_move_wish() * dt * speed
 	
 	rg3d:push_look_at(
@@ -217,19 +227,33 @@ function update()
 		vec3(0,1,0))
 	
 	-- draw faces
-	local p1, p2, p3
+	local p1, p2, p3, p4
 	
+	rg3d:set_quad_func(nil) -- set to default
+	rg3d:set_tri_func(nil)
+
 	local hcount = draw_count/2
 	for y=-hcount,hcount do
 		for x=-hcount,hcount do
-			for tri = 1, #vertex_data, 3 do
+			for tri = 1, #vertex_data, 4 do
 				p1 = vertex_data[tri    ] + rmath:vec4(-x,0,y,0)
 				p2 = vertex_data[tri + 1] + rmath:vec4(-x,0,y,0)
 				p3 = vertex_data[tri + 2] + rmath:vec4(-x,0,y,0)
-				rg3d:raster_triangle({p1,p2,p3},screen_width,screen_height)
+				p4 = vertex_data[tri + 3] + rmath:vec4(-x,0,y,0)
+				rg3d:raster_quad({p1,p2,p3,p4},screen_width,screen_height)
 			end
 		end
 	end
+
+	rg3d:set_quad_func(raster_quad_sprite) -- set to custom
+	rg3d:set_tri_func(raster_tri_sprite) -- set to custom
+
+	rg3d:raster_quad({
+		rmath:vec4(0.0, 1.0, 0.0, 1),
+		rmath:vec4(1.0, 1.0, 0.0, 1),
+		rmath:vec4(1.0, 1.0, 1.0, 1),
+		rmath:vec4(0.0, 1.0, 1.0, 1)
+	}, screen_width, screen_height)
 
 	gdt.VideoChip0:RenderOnScreen()
 	gdt.VideoChip0:Clear(color.black)
