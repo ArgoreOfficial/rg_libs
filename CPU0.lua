@@ -207,7 +207,9 @@ function update()
 	local dt = gdt.CPU0.DeltaTime
 
 	update_dir(dt)
-	cam_pos = cam_pos + get_move_wish() * dt * 10
+	local speed = 10 
+	if love.keyboard.isDown("lctrl") then speed = speed * 2 end
+	cam_pos = cam_pos + get_move_wish() * dt * speed
 	
 	rg3d:push_look_at(
 		cam_pos, 
