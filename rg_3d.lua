@@ -4,8 +4,11 @@ local rmath = require("rg_math")
 
 local g_clip_margin = 2
 
--- global rg3d state
--- perspective
+
+--------------------------------------------------------
+--[[  Globals                                         ]]
+--------------------------------------------------------
+
 local g_perspective_e   = 1
 local g_perspective_m00 = 1
 local g_perspective_m22 = 1
@@ -14,11 +17,15 @@ local g_use_perspective = true
 local g_near = 0.5
 local g_far = 50
 
--- look at
 local g_view_mat = {}
-
--- raster
 local g_debug_texture = gdt.ROM.User.SpriteSheets["assets/debug.png"]
+
+local g_raster_tri_func  = nil
+local g_raster_quad_func = nil
+
+--------------------------------------------------------
+--[[  Default Raster Functions                        ]]
+--------------------------------------------------------
 
 local function default_raster_tri(_p1,_p2,_p3)
 	gdt.VideoChip0:FillTriangle( _p1, _p2, _p3, Color(0,0,153) )
@@ -28,8 +35,17 @@ local function default_raster_quad(_p1,_p2,_p3,_p4)
 	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,g_debug_texture,vec2(0,0),vec2(64,64),color.white,color.clear)
 end
 
-local g_raster_tri_func  = default_raster_tri
-local g_raster_quad_func = default_raster_quad
+function lib:set_quad_func( _func )
+	g_raster_quad_func = _func or default_raster_quad
+end
+
+function lib:set_tri_func( _func )
+	g_raster_tri_func = _func or default_raster_tri
+end
+
+--------------------------------------------------------
+--[[  View Matrices                                   ]]
+--------------------------------------------------------
 
 function lib:push_look_at(_eye, _center, _up)
 	g_view_mat = rmath:mat4_look_at(_eye, _center, _up)
@@ -46,18 +62,30 @@ function lib:push_perspective( _aspect, _fov, _near, _far )
     g_use_perspective = true
 end
 
-function lib.mip_func_round(_v) return math.floor(_v+0.5) end
+--------------------------------------------------------
+--[[  MipMap                                          ]]
+--------------------------------------------------------
+
+function lib.mip_func_round(_v) return math.floor(_v + 0.5) end
 function lib.mip_func_floor(_v) return math.floor(_v)     end
 function lib.mip_func_ceil (_v) return math.ceil (_v)     end
+local g_default_mip_function = lib.mip_func_floor
 
 function lib:select_mip(_dval, _max, _mip_function)
 	local n = _mip_function(1/_dval)
-
-	local po2 = rmath:round_to_po2(n) -- divident power of two
+	local po2_next = rmath:round_up_to_po2(n)
+	local po2      = rmath:round_down_to_po2(n) -- divident power of two
+	local amount = 1
+	-- amount = (n - po2) / (po2_next - po2)
+	print(po2, po2_next, n, _dval)
+	
 	local mip = math.log(po2)/math.log(2.0) + 1 -- po2 exponent
 	if mip > _max then
 		mip = _max
 		po2 = math.pow(2, mip-1)
+	elseif mip <= 0 then
+		mip = 1
+		po2 = 1
 	end
 
 	return mip, po2
@@ -75,12 +103,36 @@ function lib:get_mip_height(_mip,_base_height)
 	return y
 end
 
+function lib:get_mip_level_UVs(_mip, _base_width, _base_height)
+	local po2 = math.pow(2, _mip-1)
+	local mval = 1 / po2 -- mip width
+
+	local w = _base_width  * mval
+	local h = _base_height * mval
+	
+	local x = _mip == 1 and 0 or _base_width
+	local y = lib:get_mip_height(_mip, _base_height)
+	local u = vec2(x, y)
+	local v = vec2(w, h)
+
+	return u, v
+end
+
+function lib:get_mip_level(_p1,_p2,_p3,_p4, _base_width, _base_height, _mip_function)
+	local dvalx = (math.max(_p1.X, _p2.X, _p3.X, _p4.X) - math.min(_p1.X, _p2.X, _p3.X, _p4.X)) / _base_width
+	local dvaly = (math.max(_p1.Y, _p2.Y, _p3.Y, _p4.Y) - math.min(_p1.Y, _p2.Y, _p3.Y, _p4.Y)) / _base_height
+	local dval = (dvalx > dvaly) and dvalx or dvaly
+	
+	local mip = lib:select_mip(dval, 35, _mip_function and _mip_function or g_default_mip_function)
+	return mip
+end
+
 function lib:get_mip_UVs(_p1,_p2,_p3,_p4, _base_width, _base_height, _mip_function)
 	local dvalx = (math.max(_p1.X, _p2.X, _p3.X, _p4.X) - math.min(_p1.X, _p2.X, _p3.X, _p4.X)) / _base_width
 	local dvaly = (math.max(_p1.Y, _p2.Y, _p3.Y, _p4.Y) - math.min(_p1.Y, _p2.Y, _p3.Y, _p4.Y)) / _base_height
 	local dval = (dvalx > dvaly) and dvalx or dvaly
 	
-	local mip, po2 = lib:select_mip(dval, 15, _mip_function and _mip_function or lib.mip_func_floor)
+	local mip, po2 = lib:select_mip(dval, 35, _mip_function and _mip_function or g_default_mip_function)
 	local mval = 1 / po2 -- mip width
 
 	local w = _base_width  * mval
@@ -94,14 +146,9 @@ function lib:get_mip_UVs(_p1,_p2,_p3,_p4, _base_width, _base_height, _mip_functi
 	return u, v
 end
 
-
-function lib:set_quad_func( _func )
-	g_raster_quad_func = _func or default_raster_quad
-end
-
-function lib:set_tri_func( _func )
-	g_raster_tri_func = _func or default_raster_tri
-end
+--------------------------------------------------------
+--[[  Projection                                      ]]
+--------------------------------------------------------
 
 function lib:project( _vec )
     if g_use_perspective then
@@ -136,6 +183,10 @@ function lib:to_screen(_vec, _screen_width, _screen_height)
 	local sv4 = rmath:vec3_to_screen(lib:to_clip(_vec), _screen_width, _screen_height)
 	return vec3(sv4.X, sv4.Y, sv4.Z)
 end
+
+--------------------------------------------------------
+--[[  Math Util                                       ]]
+--------------------------------------------------------
 
 local function dist_to_plane(_point,_plane_pos,_plane_normal)
 	local n = rmath:vec3_normalize(_point)
@@ -209,6 +260,26 @@ local function triangle_clip_plane(_tri, _plane_pos, _plane_normal)
 	end
 end
 
+local function count_over_value(_value,_v1,_v2,_v3,_v4)
+	local p1 = (_v1 > _value) and 1 or 0
+	local p2 = (_v2 > _value) and 1 or 0
+	local p3 = _v3 and ((_v3 > _value) and 1 or 0) or 0
+	local p4 = _v4 and ((_v4 > _value) and 1 or 0) or 0
+	return p1 + p2 + p3 + p4
+end
+
+local function count_under_value(_value,_v1,_v2,_v3,_v4)
+	local p1 = (_v1 < _value) and 1 or 0
+	local p2 = (_v2 < _value) and 1 or 0
+	local p3 = _v3 and ((_v3 < _value) and 1 or 0) or 0
+	local p4 = _v4 and ((_v4 < _value) and 1 or 0) or 0
+	return p1 + p2 + p3 + p4
+end
+
+--------------------------------------------------------
+--[[  Clipping & Raster                               ]]
+--------------------------------------------------------
+
 local function clip_triangles_plane(_in, _out,_plane_pos,_plane_normal)
 	for i=1,#_in do
 		local a,b,c = triangle_clip_plane(_in[i],_plane_pos,_plane_normal)
@@ -227,34 +298,6 @@ local function clip_triangles(_in, _out)
 	clip_triangles_plane(temp2, temp, vec3( d, 0, 0), vec3(-1, 0, 0)) -- right
 	temp2 = {}
 	clip_triangles_plane(temp, _out,  vec3( 0, d, 0), vec3( 0,-1, 0)) -- bottom
-end
-
-local function count_over_value(_value,_v1,_v2,_v3,_v4)
-	local p1 = (_v1 > _value) and 1 or 0
-	local p2 = (_v2 > _value) and 1 or 0
-	local p3 = _v3 and ((_v3 > _value) and 1 or 0) or 0
-	local p4 = _v4 and ((_v4 > _value) and 1 or 0) or 0
-	return p1 + p2 + p3 + p4
-end
-
-local function count_under_value(_value,_v1,_v2,_v3,_v4)
-	local p1 = (_v1 < _value) and 1 or 0
-	local p2 = (_v2 < _value) and 1 or 0
-	local p3 = _v3 and ((_v3 < _value) and 1 or 0) or 0
-	local p4 = _v4 and ((_v4 < _value) and 1 or 0) or 0
-	return p1 + p2 + p3 + p4
-end
-
-local function count_inside_value(_v1,_v2,_v3,_min,_max)
-	local min = _min or -1
-	local max = _max or  1
-	
-	local p1 = (_v1 >= min and _v1 < max) and 1 or 0
-	local p2 = (_v2 >= min and _v2 < max) and 1 or 0
-	local p3 = (_v3 >= min and _v3 < max) and 1 or 0
-
-	local v = p1 + p2 + p3
-	return v
 end
 
 local function clip_and_raster_triangle(
@@ -284,21 +327,20 @@ local function clip_and_raster_triangle(
 	local bottom_clip = _bottom_clip_count or count_over_value(-g_clip_margin, p1.Y, p2.Y, p3.Y)
 	if bottom_clip == 0 then return end
 	
-	local col = color.green
 	local draw_list = {}
 	if left_clip == 3 and right_clip == 3 and top_clip == 3 and bottom_clip == 3 then
 		draw_list = {triangle}
-		col = color.green
 	else
 		clip_triangles({triangle}, draw_list)
-		col = color.yellow
 	end
 
 	for i=1, #draw_list do
-		g_raster_tri_func(
-			rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
-			rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
-			rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z))
+		if g_raster_tri_func then 
+			g_raster_tri_func(
+				rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
+				rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
+				rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z))
+		end
 	end
 end
 
@@ -329,7 +371,7 @@ local function clip_and_raster_quad(
 	local bottom_clip = _bottom_clip_count or count_over_value(-g_clip_margin, p1.Y, p2.Y, p3.Y, p4.Y)
 	if bottom_clip == 0 then return end
 	
-	if left_clip == 4 and right_clip == 4 and top_clip == 4 and bottom_clip == 4 then
+	if g_raster_quad_func and left_clip == 4 and right_clip == 4 and top_clip == 4 and bottom_clip == 4 then
 		g_raster_quad_func(
 			rmath:vec3_to_screen(p1, _render_width, _render_height, p1.Z),
 			rmath:vec3_to_screen(p2, _render_width, _render_height, p2.Z),
@@ -403,5 +445,8 @@ function lib:raster_quad(_quad, _render_width, _render_height)
 		lib:raster_triangle({_quad[1],_quad[3],_quad[4]},_render_width,_render_height)
 	end
 end
+
+lib:set_quad_func()
+lib:set_tri_func()
 
 return lib

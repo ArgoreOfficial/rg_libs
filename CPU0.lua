@@ -4,6 +4,7 @@ local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
 
 local miptexture  = gdt.ROM.User.SpriteSheets["assets/mipmap.png"]
+local rb1 = gdt.VideoChip0.RenderBuffers[1]
 
 rg3d:push_perspective(
 	gdt.VideoChip0.Width / gdt.VideoChip0.Height,    -- screen aspect ratio
@@ -92,8 +93,8 @@ local function get_move_wish()
 	if love.keyboard.isDown('a') then move_input = move_input + vec3(-1,0,0) end
 	if love.keyboard.isDown('d') then move_input = move_input + vec3( 1,0,0) end
 
-	if love.keyboard.isDown("space")  then move_input = move_input + vec3(0, 1,0) end
-	if love.keyboard.isDown("lshift") then move_input = move_input + vec3(0,-1,0) end
+	if love.keyboard.isDown("e")  then move_input = move_input + vec3(0, 1,0) end
+	if love.keyboard.isDown("q") then move_input = move_input + vec3(0,-1,0) end
 
 	local up      = vec3(0,1,0)
 	local right   = rot_to_dir(0, cam_yaw + rmath:radians(90))
@@ -116,33 +117,41 @@ local function raster_quad_sprite(_p1,_p2,_p3,_p4)
 	local c = 1 - (z / 50) -- z / g_far
 	local col = ColorRGBA(255 * c, 255 * c, 255 * c, 255 * c)
 
-	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,vec2(0,0),vec2(200,200),col,color.clear)
+	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,vec2(0,0),vec2(200,200),color.white,color.clear)
 end
 
 local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4)
 	local u, v = rg3d:get_mip_UVs(_p1, _p2, _p3, _p4, 200, 200)
+	local mip = rg3d:get_mip_level(_p1, _p2, _p3, _p4, 200, 200)
 
 	local z = math.max(_p1.Z, _p2.Z, _p3.Z, _p4.Z)
 	local c = 1 - (z / 50) -- z / g_far
-	local col = ColorRGBA(255*c, 255*c, 255*c, 255*c)
+	local fog = Color(255*c, 255*c, 255*c)
+	
+	local fade = math.sin(gdt.CPU0.Time) * 0.5 + 0.5
+	local mip0col = ColorRGBA(fog.R, fog.G, fog.B, fade * 255)
 
-	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,u,v,col,color.clear)
+	--gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4, miptexture, vec2(0,0), vec2(200,200), fog, color.clear)
+	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4, miptexture, u, v, color.white, color.clear)
+
 end
 
 local function raster_tri_sprite(_p1,_p2,_p3)
-	gdt.VideoChip0:DrawTriangle(_p1,_p2,_p3,color.white)
+	gdt.VideoChip0:DrawTriangle(_p1,_p2,_p3,color.green)
 end
 
 -- update function is repeated every time tick
 function update()
 	gdt.VideoChip0:RenderOnBuffer(1)
 	gdt.VideoChip0:Clear(color.cyan)
-	local t = gdt.CPU0.Time
+	rg3d:set_quad_func(nil) -- reset
+	rg3d:set_tri_func(nil)
+
 	local dt = gdt.CPU0.DeltaTime
 
 	update_dir(dt)
 	local speed = 5
-	if love.keyboard.isDown("lctrl") then speed = speed * 4 end
+	if love.keyboard.isDown("lshift") then speed = speed * 4 end
 	cam_pos = cam_pos + get_move_wish() * dt * speed
 	
 	rg3d:push_look_at(
@@ -153,16 +162,9 @@ function update()
 	-- draw faces
 	local p1, p2, p3, p4
 	
-	rg3d:set_quad_func(nil)
-	rg3d:set_tri_func(nil)
-
 	local hcount = draw_count/2
+	rg3d:set_quad_func(raster_quad_sprite_mipped)
 	for y=-hcount,hcount do
-		if y < 0 then
-			rg3d:set_quad_func(raster_quad_sprite_mipped)
-		else
-			rg3d:set_quad_func(raster_quad_sprite)
-		end
 		for x=-hcount,hcount do
 			for tri = 1, #vertex_data, 4 do
 				p1 = vertex_data[tri    ] + rmath:vec4(-x,0,y,0)
@@ -187,8 +189,7 @@ function update()
 	gdt.VideoChip0:RenderOnScreen()
 	gdt.VideoChip0:Clear(color.black)
 
-	local rb1 = gdt.VideoChip0.RenderBuffers[1]
 	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),rb1,rb1.Width,rb1.Height)
-
+	
 	--mip_test(p1,p2,p3,p4)
 end

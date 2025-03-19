@@ -30,7 +30,7 @@ function lib.degrees( _radians )
 	return _radians * ( 180.0 / lib.const.PI )
 end
 
-function lib:round_down_to_PO2(_x)
+function lib:round_down_to_po2(_x)
     _x = bit32.bor( _x, bit32.rshift(_x,  1) )
     _x = bit32.bor( _x, bit32.rshift(_x,  2) )
     _x = bit32.bor( _x, bit32.rshift(_x,  4) )
@@ -39,7 +39,7 @@ function lib:round_down_to_PO2(_x)
     return _x - bit32.rshift(_x, 1)
 end
 
-function lib:round_up_to_PO2(_x)
+function lib:round_up_to_po2(_x)
 	_x = _x - 1
 	_x = bit32.bor(_x, bit32.rshift(_x, 1 ))
 	_x = bit32.bor(_x, bit32.rshift(_x, 2 ))
