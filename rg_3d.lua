@@ -76,12 +76,11 @@ function lib:get_mip_height(_mip,_base_height)
 end
 
 function lib:get_mip_UVs(_p1,_p2,_p3,_p4, _base_width, _base_height, _mip_function)
-	local sizex = math.max(_p1.X, _p2.X, _p3.X, _p4.X) - math.min(_p1.X, _p2.X, _p3.X, _p4.X)
-	local sizey = math.max(_p1.Y, _p2.Y, _p3.Y, _p4.Y) - math.min(_p1.Y, _p2.Y, _p3.Y, _p4.Y)
-
-	local dval = (sizex > sizey) and (sizex / _base_width) or (sizey / _base_height)
+	local dvalx = (math.max(_p1.X, _p2.X, _p3.X, _p4.X) - math.min(_p1.X, _p2.X, _p3.X, _p4.X)) / _base_width
+	local dvaly = (math.max(_p1.Y, _p2.Y, _p3.Y, _p4.Y) - math.min(_p1.Y, _p2.Y, _p3.Y, _p4.Y)) / _base_height
+	local dval = (dvalx > dvaly) and dvalx or dvaly
 	
-	local mip, po2 = lib:select_mip(dval, 15, _mip_function and _mip_function or lib.mip_func_round)
+	local mip, po2 = lib:select_mip(dval, 15, _mip_function and _mip_function or lib.mip_func_floor)
 	local mval = 1 / po2 -- mip width
 
 	local w = _base_width  * mval
