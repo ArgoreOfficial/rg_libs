@@ -81,8 +81,8 @@ local function mip_func_floor(_v) return math.floor(_v)     end
 local function mip_func_ceil (_v) return math.ceil (_v)     end
 local mip_function = mip_func_round
 
-local function select_mip(_dval, _max)
-	local n = mip_function(1 / _dval)
+local function select_mip(_dval, _max, _mip_function)
+	local n = _mip_function(1/_dval)
 
 	local po2 = round_to_po2(n) -- divident power of two
 	local mip = math.log(po2)/math.log(2.0) + 1 -- po2 exponent
@@ -94,48 +94,52 @@ local function select_mip(_dval, _max)
 	return mip, po2
 end
 
+function get_mip_UVs(_p1,_p2,_p3,_p4, _base_width, _base_height, _mip_function)
+	local minx = math.min(_p1.X, _p2.X, _p3.X, _p4.X)
+	local maxx = math.max(_p1.X, _p2.X, _p3.X, _p4.X)
+
+	local width = maxx-minx
+	
+	local mip, po2 = select_mip(width/_base_width, 15, _mip_function and _mip_function or mip_function)
+	local mval = 1 / po2 -- mip width
+
+	local w = _base_width  * mval
+	local h = _base_height * mval
+	
+	local x = mip == 1 and 0 or _base_width
+	local y = get_mip_height(mip, _base_height)
+	local u = vec2(x, y)
+	local v = vec2(w, h)
+
+	return u, v
+end
+
 function mip_test(_p1,_p2,_p3,_p4)
 
 	local minx = math.min(_p1.X, _p2.X, _p3.X, _p4.X)
 	local miny = math.min(_p1.Y, _p2.Y, _p3.Y, _p4.Y)
-	local maxx = math.max(_p1.X, _p2.X, _p3.X, _p4.X)
-	local maxy = math.max(_p1.Y, _p2.Y, _p3.Y, _p4.Y)
-
-	local width = maxx-minx
-	local height = maxy-miny
+	local u, v = get_mip_UVs(_p1, _p2, _p3, _p4, 200, 200, mip_func_floor)
 
 	local base_width = 200
 	local base_height = 200
 
 	local full_width = 300
 	local full_height = 200
-
-	local mip, po2 = select_mip(width/base_width, 4)
-	local mval = 1 / po2 -- mip width
-
-	local w = base_width  * mval
-	local h = base_height * mval
 	
-	local x = mip == 1 and 0 or base_width
-	local y = get_mip_height(mip, base_height)
-	
-	local u = vec2(x, y)
-	local v = u + vec2(w,h)
-
 	local tl = vec2(minx,miny)
 
-	--gdt.VideoChip0:DrawCustomSprite(tl, miptexture, vec2(0,0), vec2(full_width,full_height), color.white, color.clear )
+	gdt.VideoChip0:DrawCustomSprite(tl, miptexture, vec2(0,0), vec2(full_width,full_height), color.white, color.clear )
 	
-	--gdt.VideoChip0:DrawRect(tl + u, tl + v, color.black)
-	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,u,vec2(w,h),color.white,color.clear)
-	--gdt.VideoChip0:RasterCustomSprite(
-	--	vec2(0,base_height) + tl,
-	--	vec2(0,base_height) + tl+vec2(base_width, 0),
-	--	vec2(0,base_height) + tl+vec2(base_width,base_height),
-	--	vec2(0,base_height) + tl+vec2( 0,base_height),
-	--	miptexture,
-	--	u,vec2(w,h),
-	--	color.white,color.clear)
+	gdt.VideoChip0:DrawRect(tl + u, tl + u + v, color.black)
+	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,u,v,color.white,color.clear)
+	gdt.VideoChip0:RasterCustomSprite(
+		vec2(0,base_height) + tl,
+		vec2(0,base_height) + tl+vec2(base_width, 0),
+		vec2(0,base_height) + tl+vec2(base_width,base_height),
+		vec2(0,base_height) + tl+vec2( 0,base_height),
+		miptexture,
+		u,v,
+		color.white,color.clear)
 end
 
 local cam_pos = vec3(10,10,10)
@@ -205,29 +209,13 @@ local function raster_quad_sprite(_p1,_p2,_p3,_p4)
 end
 
 local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4)
-	-- switch between width and height?
-	local minx = math.min(_p1.X, _p2.X, _p3.X, _p4.X)
-	local maxx = math.max(_p1.X, _p2.X, _p3.X, _p4.X)
+	local u, v = get_mip_UVs(_p1, _p2, _p3, _p4, 200, 200)
 
-	local width = maxx-minx
-	
-	local base_width = 200
-	local base_height = 200
-
-	local mip, po2 = select_mip(width/base_width, 15)
-	local mval = 1 / po2 -- mip width
-
-	local w = base_width  * mval
-	local h = base_height * mval
-	
-	local x = mip == 1 and 0 or base_width
-	local y = get_mip_height(mip, base_height)
-	local u = vec2(x, y)
-	
 	local z = math.max(_p1.Z, _p2.Z, _p3.Z, _p4.Z)
 	local c = 1 - (z / 50) -- z / g_far
-	local col = ColorRGBA(255 * c, 255 * c, 255 * c, 255 * c)
-	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,u,vec2(w,h),col,color.clear)
+	local col = ColorRGBA(255*c, 255*c, 255*c, 255*c)
+
+	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,u,v,col,color.clear)
 end
 
 local function raster_tri_sprite(_p1,_p2,_p3)
