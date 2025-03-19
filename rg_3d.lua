@@ -75,9 +75,7 @@ function lib:select_mip(_dval, _max, _mip_function)
 	local n = _mip_function(1/_dval)
 	local po2_next = rmath:round_up_to_po2(n)
 	local po2      = rmath:round_down_to_po2(n) -- divident power of two
-	local amount = 1
-	-- amount = (n - po2) / (po2_next - po2)
-	print(po2, po2_next, n, _dval)
+	local fraction = (po2 ~= po2_next) and (((1/_dval) - po2) / (po2_next - po2)) or 0
 	
 	local mip = math.log(po2)/math.log(2.0) + 1 -- po2 exponent
 	if mip > _max then
@@ -88,7 +86,7 @@ function lib:select_mip(_dval, _max, _mip_function)
 		po2 = 1
 	end
 
-	return mip, po2
+	return mip, po2, fraction
 end
 
 function lib:get_mip_height(_mip,_base_height)
@@ -132,7 +130,7 @@ function lib:get_mip_UVs(_p1,_p2,_p3,_p4, _base_width, _base_height, _mip_functi
 	local dvaly = (math.max(_p1.Y, _p2.Y, _p3.Y, _p4.Y) - math.min(_p1.Y, _p2.Y, _p3.Y, _p4.Y)) / _base_height
 	local dval = (dvalx > dvaly) and dvalx or dvaly
 	
-	local mip, po2 = lib:select_mip(dval, 35, _mip_function and _mip_function or g_default_mip_function)
+	local mip, po2, fraction = lib:select_mip(dval, 35, _mip_function and _mip_function or g_default_mip_function)
 	local mval = 1 / po2 -- mip width
 
 	local w = _base_width  * mval
@@ -143,7 +141,7 @@ function lib:get_mip_UVs(_p1,_p2,_p3,_p4, _base_width, _base_height, _mip_functi
 	local u = vec2(x, y)
 	local v = vec2(w, h)
 
-	return u, v
+	return u, v, fraction
 end
 
 --------------------------------------------------------

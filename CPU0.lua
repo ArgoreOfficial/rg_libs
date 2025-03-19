@@ -121,18 +121,20 @@ local function raster_quad_sprite(_p1,_p2,_p3,_p4)
 end
 
 local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4)
-	local u, v = rg3d:get_mip_UVs(_p1, _p2, _p3, _p4, 200, 200)
+	local u, v, fraction = rg3d:get_mip_UVs(_p1, _p2, _p3, _p4, 200, 200)
 	local mip = rg3d:get_mip_level(_p1, _p2, _p3, _p4, 200, 200)
 
 	local z = math.max(_p1.Z, _p2.Z, _p3.Z, _p4.Z)
 	local c = 1 - (z / 50) -- z / g_far
-	local fog = Color(255*c, 255*c, 255*c)
+	local fog = Color(255, 0, 0)
 	
-	local fade = math.sin(gdt.CPU0.Time) * 0.5 + 0.5
-	local mip0col = ColorRGBA(fog.R, fog.G, fog.B, fade * 255)
-
-	--gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4, miptexture, vec2(0,0), vec2(200,200), fog, color.clear)
+	local mip0col = ColorRGBA(255, 255, 255, (1-fraction) * 255)
+	
+	local u2, v2 = rg3d:get_mip_level_UVs(mip-1, 200, 200)
 	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4, miptexture, u, v, color.white, color.clear)
+	if mip > 1 then
+		gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4, miptexture, u2, v2, mip0col, color.clear)
+	end
 
 end
 
