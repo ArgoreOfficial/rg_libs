@@ -1,4 +1,34 @@
-local lib = {}
+local lib = {
+    const = {}
+}
+
+function setup_const(t)
+    local proxy = {}
+    local mt = {       -- create metatable
+      __index = t,
+      __newindex = function (t,k,v)
+        error("attempt to update a read-only table", 2)
+      end
+    }
+    setmetatable(proxy, mt)
+    return proxy
+end
+
+lib.const.PI = 3.141592
+lib.const.EPSILON = 0.000001
+lib.const = setup_const(lib.const)
+
+--------------------------------------------------------
+--[[  Math                                            ]]
+--------------------------------------------------------
+
+function lib:radians(_degrees)
+    return _degrees * ( lib.const.PI / 180.0 )
+end
+
+function lib.degrees( _radians ) 
+	return _radians * ( 180.0 / lib.const.PI )
+end
 
 --------------------------------------------------------
 --[[  Vector 3                                        ]]
