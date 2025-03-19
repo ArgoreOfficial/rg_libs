@@ -64,10 +64,6 @@ local function round_to_po2(_n)
 	return (math.abs(v - _n) > math.abs(_n - x)) and x or v
 end
 
-local function inl_if(_condition,_a,_b)
-	return _condition and _a or _b
-end
-
 local function get_mip_height(_mip,_base_height)
 	local y = 0
 	local mip = 2
@@ -98,7 +94,6 @@ local function select_mip(_dval, _max)
 	return mip, po2
 end
 
-local last_mip = 0
 function mip_test(_p1,_p2,_p3,_p4)
 
 	local minx = math.min(_p1.X, _p2.X, _p3.X, _p4.X)
@@ -121,7 +116,7 @@ function mip_test(_p1,_p2,_p3,_p4)
 	local w = base_width  * mval
 	local h = base_height * mval
 	
-	local x = inl_if(mip == 1, 0, base_width)
+	local x = mip == 1 and 0 or base_width
 	local y = get_mip_height(mip, base_height)
 	
 	local u = vec2(x, y)
@@ -129,18 +124,18 @@ function mip_test(_p1,_p2,_p3,_p4)
 
 	local tl = vec2(minx,miny)
 
-	gdt.VideoChip0:DrawCustomSprite(tl, miptexture, vec2(0,0), vec2(full_width,full_height), color.white, color.clear )
+	--gdt.VideoChip0:DrawCustomSprite(tl, miptexture, vec2(0,0), vec2(full_width,full_height), color.white, color.clear )
 	
-	gdt.VideoChip0:DrawRect(tl + u, tl + v, color.black)
+	--gdt.VideoChip0:DrawRect(tl + u, tl + v, color.black)
 	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,u,vec2(w,h),color.white,color.clear)
-	gdt.VideoChip0:RasterCustomSprite(
-		vec2(0,base_height) + tl,
-		vec2(0,base_height) + tl+vec2(base_width, 0),
-		vec2(0,base_height) + tl+vec2(base_width,base_height),
-		vec2(0,base_height) + tl+vec2( 0,base_height),
-		miptexture,
-		u,vec2(w,h),
-		color.white,color.clear)
+	--gdt.VideoChip0:RasterCustomSprite(
+	--	vec2(0,base_height) + tl,
+	--	vec2(0,base_height) + tl+vec2(base_width, 0),
+	--	vec2(0,base_height) + tl+vec2(base_width,base_height),
+	--	vec2(0,base_height) + tl+vec2( 0,base_height),
+	--	miptexture,
+	--	u,vec2(w,h),
+	--	color.white,color.clear)
 end
 
 local cam_pos = vec3(10,10,10)
@@ -202,7 +197,37 @@ local function raster_quad(_p1,_p2,_p3,_p4)
 end
 
 local function raster_quad_sprite(_p1,_p2,_p3,_p4)
-	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,vec2(0,0),vec2(200,200),color.white,color.clear)
+	local z = math.max(_p1.Z, _p2.Z, _p3.Z, _p4.Z)
+	local c = 1 - (z / 50) -- z / g_far
+	local col = ColorRGBA(255 * c, 255 * c, 255 * c, 255 * c)
+
+	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,vec2(0,0),vec2(200,200),col,color.clear)
+end
+
+local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4)
+	-- switch between width and height?
+	local minx = math.min(_p1.X, _p2.X, _p3.X, _p4.X)
+	local maxx = math.max(_p1.X, _p2.X, _p3.X, _p4.X)
+
+	local width = maxx-minx
+	
+	local base_width = 200
+	local base_height = 200
+
+	local mip, po2 = select_mip(width/base_width, 15)
+	local mval = 1 / po2 -- mip width
+
+	local w = base_width  * mval
+	local h = base_height * mval
+	
+	local x = mip == 1 and 0 or base_width
+	local y = get_mip_height(mip, base_height)
+	local u = vec2(x, y)
+	
+	local z = math.max(_p1.Z, _p2.Z, _p3.Z, _p4.Z)
+	local c = 1 - (z / 50) -- z / g_far
+	local col = ColorRGBA(255 * c, 255 * c, 255 * c, 255 * c)
+	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,u,vec2(w,h),col,color.clear)
 end
 
 local function raster_tri_sprite(_p1,_p2,_p3)
@@ -229,11 +254,16 @@ function update()
 	-- draw faces
 	local p1, p2, p3, p4
 	
-	rg3d:set_quad_func(nil) -- set to default
+	rg3d:set_quad_func(nil)
 	rg3d:set_tri_func(nil)
 
 	local hcount = draw_count/2
 	for y=-hcount,hcount do
+		if y < 0 then
+			rg3d:set_quad_func(raster_quad_sprite_mipped)
+		else
+			rg3d:set_quad_func(raster_quad_sprite)
+		end
 		for x=-hcount,hcount do
 			for tri = 1, #vertex_data, 4 do
 				p1 = vertex_data[tri    ] + rmath:vec4(-x,0,y,0)
@@ -267,7 +297,7 @@ function update()
 
 	local rb1 = gdt.VideoChip0.RenderBuffers[1]
 	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),rb1,rb1.Width,rb1.Height)
-	gdt.VideoChip0:RasterRenderBuffer(p1,p2,p3,p4,rb1)
+	--gdt.VideoChip0:RasterRenderBuffer(p1,p2,p3,p4,rb1)
 
 	--mip_test(p1,p2,p3,p4)
 end
