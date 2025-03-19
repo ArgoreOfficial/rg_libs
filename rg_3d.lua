@@ -182,30 +182,43 @@ local function count_inside_value(_v1,_v2,_v3,_min,_max)
 	return v
 end
 
-local function clip_and_raster(_tri, _render_width, _render_height)
+local function clip_and_raster(
+	_tri,               -- {p1, p2, p3}
+	_render_width, 
+	_render_height, 
+
+	_left_clip_count,   -- optional: use these if you've precomputed 
+	_right_clip_count,  -- which points are inside the view frustum
+	_top_clip_count,    -- 
+	_bottom_clip_count  -- 
+)
 	local p1 = _tri[1]
 	local p2 = _tri[2]
 	local p3 = _tri[3]
 	local triangle = {p1,p2,p3}
 
-	local x = count_inside_value(p1.X, p2.X, p3.X)
-	local y = count_inside_value(p1.Y, p2.Y, p3.Y)
-	local count = math.min(x,y)
-	if count == 0 then return end
+	local left_clip = _left_clip_count or count_over_value(p1.X, p2.X, p3.X, -1)
+	if left_clip == 0 then return end
 	
-	local draw_list = {}
-	if count == 1 or count == 2 then
-		clip_triangles({triangle}, draw_list)
-	elseif count == 3 then
-		draw_list = {triangle}
-	end
+	local right_clip = _right_clip_count or count_under_value(p1.X, p2.X, p3.X, 1)
+	if right_clip == 0 then return end
+
+	local top_clip = _top_clip_count or count_under_value(p1.Y, p2.Y, p3.Y, 1)
+	if top_clip == 0 then return end
+	
+	local bottom_clip = _bottom_clip_count or count_over_value(p1.Y, p2.Y, p3.Y, -1)
+	if bottom_clip == 0 then return end
 	
 	local col = color.green
-	if count == 1 then
-		col = color.red
-	elseif count == 2 then
+	local draw_list = {}
+	if left_clip == 3 and right_clip == 3 and top_clip == 3 and bottom_clip == 3 then
+		draw_list = {triangle}
+		col = color.green
+	else
+		clip_triangles({triangle}, draw_list)
 		col = color.yellow
 	end
+
 	for i=1, #draw_list do
 		local z = math.max(draw_list[i][1].Z, draw_list[i][2].Z, draw_list[i][3].Z)
 		local c = 1 - (z / g_far)
