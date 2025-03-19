@@ -9,4 +9,6 @@ require("RetroGadgets/color")
 require("RetroGadgets/print")
 require("RetroGadgets/gdt")
 
+_G.bit32 = require("RetroGadgets.bit32")
+
 return nil

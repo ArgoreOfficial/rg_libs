@@ -46,6 +46,56 @@ function lib:push_perspective( _aspect, _fov, _near, _far )
     g_use_perspective = true
 end
 
+function lib.mip_func_round(_v) return math.floor(_v+0.5) end
+function lib.mip_func_floor(_v) return math.floor(_v)     end
+function lib.mip_func_ceil (_v) return math.ceil (_v)     end
+
+function lib:select_mip(_dval, _max, _mip_function)
+	local n = _mip_function(1/_dval)
+
+	local po2 = rmath:round_to_po2(n) -- divident power of two
+	local mip = math.log(po2)/math.log(2.0) + 1 -- po2 exponent
+	if mip > _max then
+		mip = _max
+		po2 = math.pow(2, mip-1)
+	end
+
+	return mip, po2
+end
+
+function lib:get_mip_height(_mip,_base_height)
+	local y = 0
+	local mip = 2
+	while mip < _mip do
+		local mp = math.pow(2,mip-1)
+		local mv = 1 / mp
+		y = y + _base_height * mv
+		mip = mip + 1
+	end
+	return y
+end
+
+function lib:get_mip_UVs(_p1,_p2,_p3,_p4, _base_width, _base_height, _mip_function)
+	local sizex = math.max(_p1.X, _p2.X, _p3.X, _p4.X) - math.min(_p1.X, _p2.X, _p3.X, _p4.X)
+	local sizey = math.max(_p1.Y, _p2.Y, _p3.Y, _p4.Y) - math.min(_p1.Y, _p2.Y, _p3.Y, _p4.Y)
+
+	local dval = (sizex > sizey) and (sizex / _base_width) or (sizey / _base_height)
+	
+	local mip, po2 = lib:select_mip(dval, 15, _mip_function and _mip_function or lib.mip_func_round)
+	local mval = 1 / po2 -- mip width
+
+	local w = _base_width  * mval
+	local h = _base_height * mval
+	
+	local x = mip == 1 and 0 or _base_width
+	local y = lib:get_mip_height(mip, _base_height)
+	local u = vec2(x, y)
+	local v = vec2(w, h)
+
+	return u, v
+end
+
+
 function lib:set_quad_func( _func )
 	g_raster_quad_func = _func or default_raster_quad
 end

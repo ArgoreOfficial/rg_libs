@@ -3,9 +3,7 @@
 local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
 
-local spritesheet = gdt.ROM.User.SpriteSheets["assets/vulkan_blue.png"]
 local miptexture  = gdt.ROM.User.SpriteSheets["assets/mipmap.png"]
-local v = require( "assets/vulkan_blue" )
 
 rg3d:push_perspective(
 	gdt.VideoChip0.Width / gdt.VideoChip0.Height,    -- screen aspect ratio
@@ -26,99 +24,12 @@ local vertex_data = {
 }
 
 local draw_count = 40
-local cam_dist = 40
 print("drawing " .. tostring(3 * draw_count * draw_count) .. " faces")
 
-local bit32 = require("RetroGadgets.bit32")
-
-local function round_down_to_PO2(_x)
-    _x = bit32.bor( _x, bit32.rshift(_x,  1) )
-    _x = bit32.bor( _x, bit32.rshift(_x,  2) )
-    _x = bit32.bor( _x, bit32.rshift(_x,  4) )
-    _x = bit32.bor( _x, bit32.rshift(_x,  8) )
-    _x = bit32.bor( _x, bit32.rshift(_x, 16) )
-    return _x - bit32.rshift(_x, 1)
-end
-
-local function round_up_to_PO2(_x)
-	_x = _x - 1
-	_x = bit32.bor(_x, bit32.rshift(_x, 1 ))
-	_x = bit32.bor(_x, bit32.rshift(_x, 2 ))
-	_x = bit32.bor(_x, bit32.rshift(_x, 4 ))
-	_x = bit32.bor(_x, bit32.rshift(_x, 8 ))
-	_x = bit32.bor(_x, bit32.rshift(_x, 16 ))
-	return _x + 1
-end
-
-local function round_to_po2(_n)
-	local v = _n - 1
-	v = bit32.bor(v, bit32.rshift(v, 1))
-	v = bit32.bor(v, bit32.rshift(v, 2))
-	v = bit32.bor(v, bit32.rshift(v, 4))
-	v = bit32.bor(v, bit32.rshift(v, 8))
-	v = bit32.bor(v, bit32.rshift(v, 16))
-	v = v + 1 -- next power of 2
-
-	local x = bit32.rshift(v, 1 ) -- previous power of 2
-
-	return (math.abs(v - _n) > math.abs(_n - x)) and x or v
-end
-
-local function get_mip_height(_mip,_base_height)
-	local y = 0
-	local mip = 2
-	while mip < _mip do
-		local mp = math.pow(2,mip-1)
-		local mv = 1 / mp
-		y = y + _base_height * mv
-		mip = mip + 1
-	end
-	return y
-end
-
-local function mip_func_round(_v) return math.floor(_v+0.5) end
-local function mip_func_floor(_v) return math.floor(_v)     end
-local function mip_func_ceil (_v) return math.ceil (_v)     end
-local mip_function = mip_func_round
-
-local function select_mip(_dval, _max, _mip_function)
-	local n = _mip_function(1/_dval)
-
-	local po2 = round_to_po2(n) -- divident power of two
-	local mip = math.log(po2)/math.log(2.0) + 1 -- po2 exponent
-	if mip > _max then
-		mip = _max
-		po2 = math.pow(2, mip-1)
-	end
-
-	return mip, po2
-end
-
-function get_mip_UVs(_p1,_p2,_p3,_p4, _base_width, _base_height, _mip_function)
-	local minx = math.min(_p1.X, _p2.X, _p3.X, _p4.X)
-	local maxx = math.max(_p1.X, _p2.X, _p3.X, _p4.X)
-
-	local width = maxx-minx
-	
-	local mip, po2 = select_mip(width/_base_width, 15, _mip_function and _mip_function or mip_function)
-	local mval = 1 / po2 -- mip width
-
-	local w = _base_width  * mval
-	local h = _base_height * mval
-	
-	local x = mip == 1 and 0 or _base_width
-	local y = get_mip_height(mip, _base_height)
-	local u = vec2(x, y)
-	local v = vec2(w, h)
-
-	return u, v
-end
-
 function mip_test(_p1,_p2,_p3,_p4)
-
 	local minx = math.min(_p1.X, _p2.X, _p3.X, _p4.X)
 	local miny = math.min(_p1.Y, _p2.Y, _p3.Y, _p4.Y)
-	local u, v = get_mip_UVs(_p1, _p2, _p3, _p4, 200, 200, mip_func_floor)
+	local u, v = rg3d:get_mip_UVs(_p1, _p2, _p3, _p4, 200, 200, rg3d.mip_func_floor)
 
 	local base_width = 200
 	local base_height = 200
@@ -142,10 +53,10 @@ function mip_test(_p1,_p2,_p3,_p4)
 		color.white,color.clear)
 end
 
-local cam_pos = vec3(10,10,10)
+local cam_pos   = vec3(10,10,10)
 local cam_pitch = 0
 local cam_yaw   = rmath.const.PI
-local cam_dir = vec3(0,0,-1)
+local cam_dir   = vec3(0,0,-1)
 
 local function rot_to_dir(_pitch, _yaw)
 	return vec3(
@@ -209,7 +120,7 @@ local function raster_quad_sprite(_p1,_p2,_p3,_p4)
 end
 
 local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4)
-	local u, v = get_mip_UVs(_p1, _p2, _p3, _p4, 200, 200)
+	local u, v = rg3d:get_mip_UVs(_p1, _p2, _p3, _p4, 200, 200)
 
 	local z = math.max(_p1.Z, _p2.Z, _p3.Z, _p4.Z)
 	local c = 1 - (z / 50) -- z / g_far
@@ -275,17 +186,9 @@ function update()
 
 	gdt.VideoChip0:RenderOnScreen()
 	gdt.VideoChip0:Clear(color.black)
-	
-	local size = math.sin(t * 0.3) * 90 + 100
-
-	local p1 = vec2(10,  10)
-	local p2 = vec2(size, 10)
-	local p3 = vec2(size, size)
-	local p4 = vec2(10,size)
 
 	local rb1 = gdt.VideoChip0.RenderBuffers[1]
 	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),rb1,rb1.Width,rb1.Height)
-	--gdt.VideoChip0:RasterRenderBuffer(p1,p2,p3,p4,rb1)
 
 	--mip_test(p1,p2,p3,p4)
 end

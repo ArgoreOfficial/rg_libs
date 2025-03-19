@@ -30,6 +30,39 @@ function lib.degrees( _radians )
 	return _radians * ( 180.0 / lib.const.PI )
 end
 
+function lib:round_down_to_PO2(_x)
+    _x = bit32.bor( _x, bit32.rshift(_x,  1) )
+    _x = bit32.bor( _x, bit32.rshift(_x,  2) )
+    _x = bit32.bor( _x, bit32.rshift(_x,  4) )
+    _x = bit32.bor( _x, bit32.rshift(_x,  8) )
+    _x = bit32.bor( _x, bit32.rshift(_x, 16) )
+    return _x - bit32.rshift(_x, 1)
+end
+
+function lib:round_up_to_PO2(_x)
+	_x = _x - 1
+	_x = bit32.bor(_x, bit32.rshift(_x, 1 ))
+	_x = bit32.bor(_x, bit32.rshift(_x, 2 ))
+	_x = bit32.bor(_x, bit32.rshift(_x, 4 ))
+	_x = bit32.bor(_x, bit32.rshift(_x, 8 ))
+	_x = bit32.bor(_x, bit32.rshift(_x, 16 ))
+	return _x + 1
+end
+
+function lib:round_to_po2(_n)
+	local v = _n - 1
+	v = bit32.bor(v, bit32.rshift(v, 1))
+	v = bit32.bor(v, bit32.rshift(v, 2))
+	v = bit32.bor(v, bit32.rshift(v, 4))
+	v = bit32.bor(v, bit32.rshift(v, 8))
+	v = bit32.bor(v, bit32.rshift(v, 16))
+	v = v + 1 -- next power of 2
+
+	local x = bit32.rshift(v, 1 ) -- previous power of 2
+
+	return (math.abs(v - _n) > math.abs(_n - x)) and x or v
+end
+
 --------------------------------------------------------
 --[[  Vector 3                                        ]]
 --------------------------------------------------------
