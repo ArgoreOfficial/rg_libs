@@ -18,7 +18,7 @@ local g_near = 0.5
 local g_far = 50
 
 local g_view_mat = {}
-local g_debug_texture = gdt.ROM.User.SpriteSheets["assets/debug.png"]
+local g_debug_texture = gdt.ROM.User.SpriteSheets["debug.png"]
 
 local g_raster_tri_func  = nil
 local g_raster_quad_func = nil

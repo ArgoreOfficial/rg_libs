@@ -3,7 +3,9 @@
 local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
 
-local miptexture  = gdt.ROM.User.SpriteSheets["assets/mipmap.png"]
+local miptexture  = gdt.ROM.User.SpriteSheets["mipmap64.png"]
+gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
+-- this has to be grabbed after because of love2d stuff
 local rb1 = gdt.VideoChip0.RenderBuffers[1]
 
 rg3d:push_perspective(
@@ -18,41 +20,14 @@ local screen_height = gdt.VideoChip0.Height
 
 local vertex_data = {
 	-- bottom quad
-	rmath:vec4(-0.5, 0.0, -0.5, 1),
-	rmath:vec4(-0.5, 0.0,  0.5, 1),
-	rmath:vec4( 0.5, 0.0,  0.5, 1),
-	rmath:vec4( 0.5, 0.0, -0.5, 1)
+	vec3(-0.5, 0.0, -0.5),
+	vec3(-0.5, 0.0,  0.5),
+	vec3( 0.5, 0.0,  0.5),
+	vec3( 0.5, 0.0, -0.5)
 }
 
 local draw_count = 40
 print("drawing " .. tostring(3 * draw_count * draw_count) .. " faces")
-
-function mip_test(_p1,_p2,_p3,_p4)
-	local minx = math.min(_p1.X, _p2.X, _p3.X, _p4.X)
-	local miny = math.min(_p1.Y, _p2.Y, _p3.Y, _p4.Y)
-	local u, v = rg3d:get_mip_UVs(_p1, _p2, _p3, _p4, 200, 200, rg3d.mip_func_floor)
-
-	local base_width = 200
-	local base_height = 200
-
-	local full_width = 300
-	local full_height = 200
-	
-	local tl = vec2(minx,miny)
-
-	gdt.VideoChip0:DrawCustomSprite(tl, miptexture, vec2(0,0), vec2(full_width,full_height), color.white, color.clear )
-	
-	gdt.VideoChip0:DrawRect(tl + u, tl + u + v, color.black)
-	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,u,v,color.white,color.clear)
-	gdt.VideoChip0:RasterCustomSprite(
-		vec2(0,base_height) + tl,
-		vec2(0,base_height) + tl+vec2(base_width, 0),
-		vec2(0,base_height) + tl+vec2(base_width,base_height),
-		vec2(0,base_height) + tl+vec2( 0,base_height),
-		miptexture,
-		u,v,
-		color.white,color.clear)
-end
 
 local cam_pos   = vec3(10,10,10)
 local cam_pitch = 0
@@ -67,15 +42,20 @@ local function rot_to_dir(_pitch, _yaw)
 	)
 end
 
+local rinput = {}
+function eventChannel1(_sender,_event)
+	rinput[_event.InputName] = _event.ButtonDown
+end
+
 local function update_dir(_v)
 	local wish_pitch = 0
 	local wish_yaw   = 0
 
-	if love.keyboard.isDown("left")  then wish_yaw = wish_yaw - 1 end
-	if love.keyboard.isDown("right") then wish_yaw = wish_yaw + 1 end
+	if rinput["LeftArrow"] then wish_yaw = wish_yaw - 1 end
+	if rinput["RightArrow"] then wish_yaw = wish_yaw + 1 end
 
-	if love.keyboard.isDown("up")   then wish_pitch = wish_pitch + 1 end
-	if love.keyboard.isDown("down") then wish_pitch = wish_pitch - 1 end
+	if rinput["UpArrow"]   then wish_pitch = wish_pitch + 1 end
+	if rinput["DownArrow"] then wish_pitch = wish_pitch - 1 end
 
 	cam_pitch = cam_pitch + wish_pitch * _v
 	cam_yaw   = cam_yaw   + wish_yaw   * _v
@@ -87,14 +67,14 @@ end
 local function get_move_wish()
 	local move_input = vec3(0,0,0)
 	
-	if love.keyboard.isDown('w') then move_input = move_input + vec3(0,0, 1) end
-	if love.keyboard.isDown('s') then move_input = move_input + vec3(0,0,-1) end
+	if rinput["W"] then move_input = move_input + vec3(0,0, 1) end
+	if rinput["S"] then move_input = move_input + vec3(0,0,-1) end
 
-	if love.keyboard.isDown('a') then move_input = move_input + vec3(-1,0,0) end
-	if love.keyboard.isDown('d') then move_input = move_input + vec3( 1,0,0) end
+	if rinput["A"] then move_input = move_input + vec3(-1,0,0) end
+	if rinput["D"] then move_input = move_input + vec3( 1,0,0) end
 
-	if love.keyboard.isDown("e")  then move_input = move_input + vec3(0, 1,0) end
-	if love.keyboard.isDown("q") then move_input = move_input + vec3(0,-1,0) end
+	if rinput["E"] then move_input = move_input + vec3(0, 1,0) end
+	if rinput["Q"] then move_input = move_input + vec3(0,-1,0) end
 
 	local up      = vec3(0,1,0)
 	local right   = rot_to_dir(0, cam_yaw + rmath:radians(90))
@@ -117,21 +97,20 @@ local function raster_quad_sprite(_p1,_p2,_p3,_p4)
 	local c = 1 - (z / 50) -- z / g_far
 	local col = ColorRGBA(255 * c, 255 * c, 255 * c, 255 * c)
 
-	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,vec2(0,0),vec2(200,200),color.white,color.clear)
+	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,vec2(0,0),vec2(64,64),color.white,color.clear)
 end
 
 local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4)
-	local u, v, fraction = rg3d:get_mip_UVs(_p1, _p2, _p3, _p4, 200, 200)
-	local mip = rg3d:get_mip_level(_p1, _p2, _p3, _p4, 200, 200)
+	local u, v, fraction = rg3d:get_mip_UVs(_p1, _p2, _p3, _p4, 64, 64)
+	local mip = rg3d:get_mip_level(_p1, _p2, _p3, _p4, 64, 64)
 
 	local z = math.max(_p1.Z, _p2.Z, _p3.Z, _p4.Z)
 	local c = 1 - (z / 50) -- z / g_far
-	local fog = Color(255, 0, 0)
+	local fog = Color(c*255, c*255, c*255)
+	local mip0col = ColorRGBA(fog.R, fog.G, fog.B, (1-fraction) * 255)
 	
-	local mip0col = ColorRGBA(255, 255, 255, (1-fraction) * 255)
-	
-	local u2, v2 = rg3d:get_mip_level_UVs(mip-1, 200, 200)
-	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4, miptexture, u, v, color.white, color.clear)
+	local u2, v2 = rg3d:get_mip_level_UVs(mip-1, 64, 64)
+	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4, miptexture, u, v, fog, color.clear)
 	if mip > 1 then
 		gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4, miptexture, u2, v2, mip0col, color.clear)
 	end
@@ -153,7 +132,7 @@ function update()
 
 	update_dir(dt)
 	local speed = 5
-	if love.keyboard.isDown("lshift") then speed = speed * 4 end
+	if rinput["LeftShift"] then speed = speed * 4 end
 	cam_pos = cam_pos + get_move_wish() * dt * speed
 	
 	rg3d:push_look_at(
@@ -178,20 +157,18 @@ function update()
 		end
 	end
 
-	rg3d:set_quad_func(raster_quad_sprite) -- set to custom
+	rg3d:set_quad_func(nil) -- set to custom
 	rg3d:set_tri_func(raster_tri_sprite) -- set to custom
 
 	rg3d:raster_quad({
-		rmath:vec4(0.0, 1.0, 0.0, 1),
-		rmath:vec4(1.0, 1.0, 0.0, 1),
-		rmath:vec4(1.0, 1.0, 1.0, 1),
-		rmath:vec4(0.0, 1.0, 1.0, 1)
+		vec3(0.0, 1.0, 0.0),
+		vec3(1.0, 1.0, 0.0),
+		vec3(1.0, 1.0, 1.0),
+		vec3(0.0, 1.0, 1.0)
 	}, screen_width, screen_height)
 
 	gdt.VideoChip0:RenderOnScreen()
 	gdt.VideoChip0:Clear(color.black)
 
 	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),rb1,rb1.Width,rb1.Height)
-	
-	--mip_test(p1,p2,p3,p4)
 end

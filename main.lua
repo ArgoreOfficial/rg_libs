@@ -48,6 +48,18 @@ function love.update(_dt)
 	_update_gdt(_dt)
 end
 
+function love.keypressed(key, scancode, isrepeat)
+	if eventChannel1 then
+		eventChannel1(nil, KeyboardChipEvent(true, false, _keycode_l2d_to_rg(key), "KeyboardChipEvent"))
+	end
+end
+
+function love.keyreleased(key, scancode, isrepeat)
+	if eventChannel1 then
+		eventChannel1(nil, KeyboardChipEvent(false, true, _keycode_l2d_to_rg(key), "KeyboardChipEvent"))
+	end
+end
+
 function love.draw()
 	love.graphics.setCanvas(gdt.VideoChip0._current_renderbuffer._Canvas)
 	
