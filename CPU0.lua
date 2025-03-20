@@ -4,9 +4,10 @@ local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
 
 local miptexture  = gdt.ROM.User.SpriteSheets["mipmap64.png"]
+local rb1 = gdt.VideoChip0.RenderBuffers[1]
+
 gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
 -- this has to be grabbed after because of love2d stuff
-local rb1 = gdt.VideoChip0.RenderBuffers[1]
 
 rg3d:push_perspective(
 	gdt.VideoChip0.Width / gdt.VideoChip0.Height,    -- screen aspect ratio

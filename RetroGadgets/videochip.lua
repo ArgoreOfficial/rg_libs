@@ -26,7 +26,7 @@ local function _reset_color()
 end
 
 function _G._videochip()
-    local screen_buffer = _renderbuffer(GADGET.ScreenWidth, GADGET.ScreenHeight)
+    local screen_buffer = _renderbuffer_new(GADGET.ScreenWidth, GADGET.ScreenHeight)
     local vc = setmetatable({
         Width  = GADGET.ScreenWidth,
         Height = GADGET.ScreenHeight,
@@ -36,7 +36,7 @@ function _G._videochip()
     }, meta)
 
     for i=1,8 do
-        table.insert(vc.RenderBuffers, _renderbuffer(vc.Width, vc.Height))
+        table.insert(vc.RenderBuffers, _renderbuffer_new(64, 64))
     end
 
     return vc
@@ -58,7 +58,10 @@ function methods:RenderOnBuffer(_index)
 end
 
 function methods:SetRenderBufferSize(_index, _width, _height) 
-    gdt.VideoChip0.RenderBuffers[_index] = _renderbuffer(math.min(_width, 4096), math.min(_height, 4096))
+    _renderbuffer_set(
+        gdt.VideoChip0.RenderBuffers[_index], 
+        math.min(_width, 4096), 
+        math.min(_height, 4096))
 end
 
 function methods:SetPixel(_position, _color)
