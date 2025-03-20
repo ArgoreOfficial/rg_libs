@@ -73,9 +73,9 @@ local g_default_mip_function = lib.mip_func_floor
 
 function lib:select_mip(_dval, _max, _mip_function)
 	local n = _mip_function(1/_dval)
-	local po2_next = rmath:round_up_to_po2(n)
 	local po2      = rmath:round_down_to_po2(n) -- divident power of two
-	local fraction = (po2 ~= po2_next) and (((1/_dval) - po2) / (po2_next - po2)) or 0
+	local po2_next = po2 * 2
+	local fraction = (po2_next > po2) and ((1/_dval) - po2) / (po2_next - po2) or 0
 	
 	local mip = math.log(po2)/math.log(2.0) + 1 -- po2 exponent
 	if mip > _max then
