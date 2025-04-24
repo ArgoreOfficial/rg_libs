@@ -3,7 +3,7 @@
 local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
 
-local palette = gdt.ROM.User.SpriteSheets["palettes.png"]
+local palette = gdt.ROM.User.SpriteSheets["stripes.png"]
 local miptexture  = gdt.ROM.User.SpriteSheets["mipmap64.png"]
 gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
 -- this has to be grabbed after because of love2d stuff
@@ -19,7 +19,7 @@ rg3d:push_perspective(
 local screen_width  = gdt.VideoChip0.Width
 local screen_height = gdt.VideoChip0.Height
 
-local vertex_data = {
+local quad_vbo = {
 	-- bottom quad
 	vec3(-0.5, 0.0, -0.5),
 	vec3(-0.5, 0.0,  0.5),
@@ -28,9 +28,8 @@ local vertex_data = {
 }
 
 local draw_count = 40
-print("drawing " .. tostring(3 * draw_count * draw_count) .. " faces")
 
-local cam_pos   = vec3(10,10,10)
+local cam_pos   = vec3(3,3,0)
 local cam_pitch = 0
 local cam_yaw   = rmath.const.PI
 local cam_dir   = vec3(0,0,-1)
@@ -93,24 +92,34 @@ local function raster_quad(_p1,_p2,_p3,_p4)
 	gdt.VideoChip0:FillTriangle( _p1, _p3, _p4, color.blue )
 end
 
+local function orientation(_p1,_p2,_p3)
+	-- orientation of an (x, y) triplet
+    local val = ((_p2.Y - _p1.Y) * (_p3.Z - _p2.X)) -
+                ((_p2.X - _p1.Z) * (_p3.Y - _p2.Y)) ;
+
+    if val == 0 then
+        return 0
+    elseif val > 0 then
+        return 1
+    else
+        return -1
+	end
+end
+
 local function create_shader_fog_quad(_texture)
-	return function(_p1,_p2,_p3,_p4)
-		local z = math.max(_p1.Z, _p2.Z, _p3.Z, _p4.Z)
-		local c = 1 - (z / 50) -- z / g_far
-		local col = ColorRGBA(255,255,255, 255 * c)
-	
-		--if col.A ~= 255 then
-		--	local fog_color = color.black
-		--	gdt.VideoChip0:FillTriangle( _p1, _p2, _p3, fog_color )
-		--	gdt.VideoChip0:FillTriangle( _p1, _p3, _p4, fog_color )
-		--end
+	return function(_p1,_p2,_p3,_p4,_view_normal)
+		local cross = rmath:vec3_cross(
+			_p2 - _p1, 
+			_p4 - _p1
+		)
 		
 		local t = (gdt.CPU0.Time * 64 * 3) % 64
+		local c = rmath:vec3_normalize(_view_normal).Z
 		gdt.VideoChip0:RasterCustomSprite(
 			_p1,_p2,_p3,_p4,
 			_texture,
 			vec2(t,0),vec2(64,64),
-			ColorRGBA(255,255,255, 255 * 0.3),
+			ColorRGBA(255*c,255*c,255*c,255),
 			color.clear
 		)
 	end
@@ -169,6 +178,11 @@ end
 
 local palette_quad_shader = create_shader_fog_quad(palette)
 
+--local rmesh = require "rg_mesh"
+
+local torus_drawlist = require "torus_obj" -- rmesh:parse_obj("torus.obj")
+--rmesh:export_mesh( torus_drawlist )
+
 -- update function is repeated every time tick
 function update()
 	gdt.VideoChip0:RenderOnBuffer(1)
@@ -178,7 +192,7 @@ function update()
 
 	local dt = gdt.CPU0.DeltaTime
 
-	update_dir(dt)
+	update_dir(dt * 1.2)
 	local speed = 5
 	if rinput["LeftShift"] then speed = speed * 4 end
 	cam_pos = cam_pos + get_move_wish() * dt * speed
@@ -191,29 +205,54 @@ function update()
 	-- draw faces
 	local p1, p2, p3, p4
 
-	rg3d:set_quad_func(raster_quad_sprite) -- set to custom
+	rg3d:set_quad_func(raster_quad_sprite_mipped) -- set to custom
 	
 	local hcount = draw_count/2
 
 	rg3d:set_clip_far( false ) -- disable far clipping for floor
 	
 	rg3d:begin_render() -- begin renderpass
-	for y=-hcount,hcount do
-		for x=-hcount,hcount do
-			for tri = 1, #vertex_data, 4 do
-				p1 = vertex_data[tri    ] + rmath:vec4(-x,0,y,0)
-				p2 = vertex_data[tri + 1] + rmath:vec4(-x,0,y,0)
-				p3 = vertex_data[tri + 2] + rmath:vec4(-x,0,y,0)
-				p4 = vertex_data[tri + 3] + rmath:vec4(-x,0,y,0)
-				rg3d:raster_quad({p1,p2,p3,p4},screen_width,screen_height)
-			end
-		end
-	end
+	--for y=-hcount,hcount do
+	--	for x=-hcount,hcount do
+	--		for tri = 1, #quad_vbo, 4 do
+	--			p1 = quad_vbo[tri    ] + rmath:vec4(-x,0,y,0)
+	--			p2 = quad_vbo[tri + 1] + rmath:vec4(-x,0,y,0)
+	--			p3 = quad_vbo[tri + 2] + rmath:vec4(-x,0,y,0)
+	--			p4 = quad_vbo[tri + 3] + rmath:vec4(-x,0,y,0)
+	--			rg3d:raster_quad({p1,p2,p3,p4},screen_width,screen_height)
+	--		end
+	--	end
+	--end
 
 	rg3d:set_clip_far( true )
 	rg3d:set_tri_func(nil) -- set to custom
 	rg3d:set_quad_func(palette_quad_shader) -- set to custom
 	
+	local function translate_quad(_quad, _vec)
+		return {
+			_quad[1] + _vec,
+			_quad[2] + _vec,
+			_quad[3] + _vec,
+			_quad[4] + _vec
+		}
+	end
+
+	local function scale_quad(_quad, _vec)
+		return {
+			vec3_mult(_quad[1], _vec),
+			vec3_mult(_quad[2], _vec),
+			vec3_mult(_quad[3], _vec),
+			vec3_mult(_quad[4], _vec)
+		}
+	end
+
+
+	for i = 1, #torus_drawlist do
+		local ws = scale_quad(torus_drawlist[i], vec3(4,4,4))
+		ws = translate_quad(ws, vec3(0,1,0))
+		rg3d:raster_quad(ws,screen_width,screen_height)
+	end
+
 	local scale_x = nsin(gdt.CPU0.Time * 4) + 0.5
 	local scale_z = ncos(gdt.CPU0.Time * 4) + 0.5
 
@@ -230,7 +269,7 @@ function update()
 
 	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),rb1,rb1.Width,rb1.Height)
 	
-	gdt.VideoChip0:DrawSprite(vec2(0,0), palette, 0, 0, color.white, color.white )
-	gdt.VideoChip0:DrawSprite(vec2(64,0), palette, 0, 0, color.red, color.white )
-	gdt.VideoChip0:DrawSprite(vec2(128,0), palette, 0, 0, color.blue, color.white )
+	--gdt.VideoChip0:DrawSprite(vec2(0,0), palette, 0, 0, color.white, color.white )
+	--gdt.VideoChip0:DrawSprite(vec2(64,0), palette, 0, 0, color.red, color.white )
+	--gdt.VideoChip0:DrawSprite(vec2(128,0), palette, 0, 0, color.blue, color.white )
 end

@@ -4,7 +4,6 @@ local rmath = require("rg_math")
 
 local g_clip_margin = 2
 
-
 --------------------------------------------------------
 --[[  Globals                                         ]]
 --------------------------------------------------------
@@ -429,10 +428,7 @@ local function clip_and_raster_quad(
 	_top_clip_count,    -- 
 	_bottom_clip_count  -- 
 )
-	local p1 = _quad[1]
-	local p2 = _quad[2]
-	local p3 = _quad[3]
-	local p4 = _quad[4]
+	local p1,p2,p3,p4 = table.unpack(_quad)
 	
 	local left_clip = _left_clip_count or count_over_value(-g_clip_margin, p1.X, p2.X, p3.X, p4.X)
 	if left_clip == 0 then return end
@@ -447,13 +443,21 @@ local function clip_and_raster_quad(
 	if bottom_clip == 0 then return end
 	
 	if g_raster_quad_func and left_clip == 4 and right_clip == 4 and top_clip == 4 and bottom_clip == 4 then
+		
+		local U = p2 - p1
+		local V = p4 - p1
+		local view_normal = rmath:vec3_cross(U, V)
+		
+		if view_normal.Z < 0 then return end
+
 		_push_cmd_draw(
 			g_raster_quad_func, 
 			(p1.Z + p2.Z + p3.Z + p4.Z), 
 			rmath:vec3_to_screen(p1, _render_width, _render_height, p1.Z),
 			rmath:vec3_to_screen(p2, _render_width, _render_height, p2.Z),
 			rmath:vec3_to_screen(p3, _render_width, _render_height, p3.Z),
-			rmath:vec3_to_screen(p4, _render_width, _render_height, p4.Z)
+			rmath:vec3_to_screen(p4, _render_width, _render_height, p4.Z),
+			view_normal
 		)
 	else
 		clip_and_raster_triangle({p1,p2,p3}, _render_width, _render_height )

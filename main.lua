@@ -29,6 +29,8 @@ _setup_rg_runtime(CONFIG)
 -- RG Layer
 require( "RetroGadgets/rg" )
 
+table.unpack = unpack
+
 function love.load()	
 	love.window.setMode(
 		GADGET.ScreenWidth  * GADGET.Scale,
