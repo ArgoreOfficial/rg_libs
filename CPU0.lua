@@ -51,7 +51,7 @@ local function update_dir(_v)
 	local wish_pitch = 0
 	local wish_yaw   = 0
 
-	if rinput["LeftArrow"] then wish_yaw = wish_yaw - 1 end
+	if rinput["LeftArrow"]  then wish_yaw = wish_yaw - 1 end
 	if rinput["RightArrow"] then wish_yaw = wish_yaw + 1 end
 
 	if rinput["UpArrow"]   then wish_pitch = wish_pitch + 1 end
@@ -61,7 +61,7 @@ local function update_dir(_v)
 	cam_yaw   = cam_yaw   + wish_yaw   * _v
 	cam_pitch = math.min(cam_pitch,  rmath:radians(85))
 	cam_pitch = math.max(cam_pitch, -rmath:radians(85))
-	cam_dir = rot_to_dir(cam_pitch, cam_yaw)
+	cam_dir   = rot_to_dir(cam_pitch, cam_yaw)
 end
 
 local function get_move_wish()
@@ -106,20 +106,20 @@ local function orientation(_p1,_p2,_p3)
 	end
 end
 
+local function FillQuad(p1,p2,p3,p4,color)
+	gdt.VideoChip0:FillTriangle(p1,p2,p3,color)
+	gdt.VideoChip0:FillTriangle(p1,p3,p4,color)
+end
+
 local function create_shader_fog_quad(_texture)
-	return function(_p1,_p2,_p3,_p4,_view_normal)
-		local cross = rmath:vec3_cross(
-			_p2 - _p1, 
-			_p4 - _p1
-		)
-		
-		local t = (gdt.CPU0.Time * 64 * 3) % 64
+	return function(_p1,_p2,_p3,_p4,_view_normal)		
+		local t = (gdt.CPU0.Time * 16) % 32
 		local c = rmath:vec3_normalize(_view_normal).Z
 		gdt.VideoChip0:RasterCustomSprite(
 			_p1,_p2,_p3,_p4,
 			_texture,
-			vec2(t,0),vec2(64,64),
-			ColorRGBA(255*c,255*c,255*c,255),
+			vec2(0,t),vec2(64,32),
+			color.white,
 			color.clear
 		)
 	end
@@ -168,14 +168,6 @@ local function vec3_mult(_lhs,_rhs)
 	)
 end
 
-local function nsin(_v)
-	return math.sin(_v) * 0.5 + 0.5
-end
-
-local function ncos(_v)
-	return math.cos(_v) * 0.5 + 0.5
-end
-
 local palette_quad_shader = create_shader_fog_quad(palette)
 
 --local rmesh = require "rg_mesh"
@@ -212,17 +204,17 @@ function update()
 	rg3d:set_clip_far( false ) -- disable far clipping for floor
 	
 	rg3d:begin_render() -- begin renderpass
-	--for y=-hcount,hcount do
-	--	for x=-hcount,hcount do
-	--		for tri = 1, #quad_vbo, 4 do
-	--			p1 = quad_vbo[tri    ] + rmath:vec4(-x,0,y,0)
-	--			p2 = quad_vbo[tri + 1] + rmath:vec4(-x,0,y,0)
-	--			p3 = quad_vbo[tri + 2] + rmath:vec4(-x,0,y,0)
-	--			p4 = quad_vbo[tri + 3] + rmath:vec4(-x,0,y,0)
-	--			rg3d:raster_quad({p1,p2,p3,p4},screen_width,screen_height)
-	--		end
-	--	end
-	--end
+	for y=-hcount,hcount do
+		for x=-hcount,hcount do
+			for tri = 1, #quad_vbo, 4 do
+				p1 = quad_vbo[tri    ] + rmath:vec4(-x,0,y,0)
+				p2 = quad_vbo[tri + 1] + rmath:vec4(-x,0,y,0)
+				p3 = quad_vbo[tri + 2] + rmath:vec4(-x,0,y,0)
+				p4 = quad_vbo[tri + 3] + rmath:vec4(-x,0,y,0)
+				rg3d:raster_quad({p1,p2,p3,p4},screen_width,screen_height)
+			end
+		end
+	end
 
 	rg3d:set_clip_far( true )
 	rg3d:set_tri_func(nil) -- set to custom
@@ -246,22 +238,16 @@ function update()
 		}
 	end
 
+	local scale_x = rmath:nsin(gdt.CPU0.Time * 4)
+	local scale_z = rmath:ncos(gdt.CPU0.Time * 4)
+
 
 	for i = 1, #torus_drawlist do
-		local ws = scale_quad(torus_drawlist[i], vec3(4,4,4))
-		ws = translate_quad(ws, vec3(0,1,0))
+		local ws = scale_quad(torus_drawlist[i], vec3( 1.3+scale_x, 1.3+scale_z, 1.3+scale_x ) )
+		ws = translate_quad(ws, vec3(3,2,0))
 		rg3d:raster_quad(ws,screen_width,screen_height)
 	end
 
-	local scale_x = nsin(gdt.CPU0.Time * 4) + 0.5
-	local scale_z = ncos(gdt.CPU0.Time * 4) + 0.5
-
-	rg3d:raster_quad({
-		vec3_mult( vec3(-0.5, 1.0, -0.5), vec3(scale_x,1.0,scale_z) ),
-		vec3_mult( vec3( 0.5, 1.0, -0.5), vec3(scale_x,1.0,scale_z) ),
-		vec3_mult( vec3( 0.5, 1.0,  0.5), vec3(scale_x,1.0,scale_z) ),
-		vec3_mult( vec3(-0.5, 1.0,  0.5), vec3(scale_x,1.0,scale_z) )
-	}, screen_width, screen_height)
 	rg3d:end_render()
 
 	gdt.VideoChip0:RenderOnScreen()

@@ -18,6 +18,16 @@ lib.const.PI = 3.141592
 lib.const.EPSILON = 0.000001
 lib.const = setup_const(lib.const)
 
+
+function lib:nsin(_v)
+	return math.sin(_v) * 0.5 + 0.5
+end
+
+function lib:ncos(_v)
+	return math.cos(_v) * 0.5 + 0.5
+end
+
+
 --------------------------------------------------------
 --[[  Math                                            ]]
 --------------------------------------------------------
