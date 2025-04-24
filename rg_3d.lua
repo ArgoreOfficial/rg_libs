@@ -25,6 +25,9 @@ local g_raster_quad_func = nil
 
 local g_clip_far = true
 
+local g_current_renderpass = nil
+local g_renderpasses = {}
+
 --------------------------------------------------------
 --[[  Default Raster Functions                        ]]
 --------------------------------------------------------
@@ -47,6 +50,55 @@ end
 
 function lib:set_clip_far( _bool )
 	g_clip_far = _bool
+end
+
+--------------------------------------------------------
+--[[  RenderPasses                                    ]]
+--------------------------------------------------------
+
+function lib:begin_render()
+	if g_current_renderpass then
+		print("begin_render cannot be called twice")
+		return
+	end
+
+	g_current_renderpass = {}
+end
+
+function lib:end_render()
+	if not g_current_renderpass then
+		print("end_render cannot be called twice")
+		return
+	end
+
+	local tkeys = {}
+	
+	for k in pairs(g_current_renderpass) do table.insert(tkeys, k) end
+	
+	table.sort(tkeys)
+	
+	for _, k in ipairs(tkeys) do 
+		g_current_renderpass[k].func(unpack(g_current_renderpass[k].args))
+	end
+	
+	g_current_renderpass = nil
+end
+
+local function _push_cmd_draw(_func, _depth, ...)
+	if not g_current_renderpass then
+		error("No renderpass")
+	end
+	
+	_depth = -_depth
+
+	while g_current_renderpass[_depth] ~= nil do
+		_depth = _depth - 0.001
+	end
+
+	g_current_renderpass[_depth] = {
+		func = g_raster_quad_func,
+		args = {...}
+	}
 end
 
 --------------------------------------------------------
@@ -340,10 +392,29 @@ local function clip_and_raster_triangle(
 
 	for i=1, #draw_list do
 		if g_raster_tri_func then 
-			g_raster_tri_func(
-				rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
-				rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
-				rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z))
+			local depth_key = (draw_list[i][1].Z + draw_list[i][2].Z + draw_list[i][3].Z) / 3
+
+			if not g_current_renderpass then
+				error("No renderpass")
+			end
+
+			while g_current_renderpass[ depth_key ] ~= nil do
+				depth_key = depth_key + 0.001
+			end
+
+			g_current_renderpass[ depth_key ] = {
+				func = g_raster_tri_func,
+				args = {
+					rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
+					rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
+					rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z)
+				}
+			}
+
+			--g_raster_tri_func(
+			--	rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
+			--	rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
+			--	rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z))
 		end
 	end
 end
@@ -376,11 +447,14 @@ local function clip_and_raster_quad(
 	if bottom_clip == 0 then return end
 	
 	if g_raster_quad_func and left_clip == 4 and right_clip == 4 and top_clip == 4 and bottom_clip == 4 then
-		g_raster_quad_func(
+		_push_cmd_draw(
+			g_raster_quad_func, 
+			(p1.Z + p2.Z + p3.Z + p4.Z), 
 			rmath:vec3_to_screen(p1, _render_width, _render_height, p1.Z),
 			rmath:vec3_to_screen(p2, _render_width, _render_height, p2.Z),
 			rmath:vec3_to_screen(p3, _render_width, _render_height, p3.Z),
-			rmath:vec3_to_screen(p4, _render_width, _render_height, p4.Z))
+			rmath:vec3_to_screen(p4, _render_width, _render_height, p4.Z)
+		)
 	else
 		clip_and_raster_triangle({p1,p2,p3}, _render_width, _render_height )
 		clip_and_raster_triangle({p1,p3,p4}, _render_width, _render_height )

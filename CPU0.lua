@@ -196,6 +196,8 @@ function update()
 	local hcount = draw_count/2
 
 	rg3d:set_clip_far( false ) -- disable far clipping for floor
+	
+	rg3d:begin_render() -- begin renderpass
 	for y=-hcount,hcount do
 		for x=-hcount,hcount do
 			for tri = 1, #vertex_data, 4 do
@@ -207,10 +209,9 @@ function update()
 			end
 		end
 	end
-	rg3d:set_clip_far( true )
-	
-	rg3d:set_tri_func(nil) -- set to custom
 
+	rg3d:set_clip_far( true )
+	rg3d:set_tri_func(nil) -- set to custom
 	rg3d:set_quad_func(palette_quad_shader) -- set to custom
 	
 	local scale_x = nsin(gdt.CPU0.Time * 4) + 0.5
@@ -222,6 +223,7 @@ function update()
 		vec3_mult( vec3( 0.5, 1.0,  0.5), vec3(scale_x,1.0,scale_z) ),
 		vec3_mult( vec3(-0.5, 1.0,  0.5), vec3(scale_x,1.0,scale_z) )
 	}, screen_width, screen_height)
+	rg3d:end_render()
 
 	gdt.VideoChip0:RenderOnScreen()
 	gdt.VideoChip0:Clear(color.black)
