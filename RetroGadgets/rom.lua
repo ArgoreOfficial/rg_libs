@@ -6,7 +6,7 @@ local rom_spritesheet_meta = {}
 function rom_spritesheet_meta:__index(_k)
     local ret,img = pcall(love.graphics.newImage, "assets/" .. _k)
     if not ret then
-        return _spritesheet(nil, nil, 0, 0)
+        return nil
     end
     return _spritesheet("assets/" .. _k, img, img:getWidth(), img:getHeight() )
 end

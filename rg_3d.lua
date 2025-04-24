@@ -23,6 +23,8 @@ local g_debug_texture = gdt.ROM.User.SpriteSheets["debug.png"]
 local g_raster_tri_func  = nil
 local g_raster_quad_func = nil
 
+local g_clip_far = true
+
 --------------------------------------------------------
 --[[  Default Raster Functions                        ]]
 --------------------------------------------------------
@@ -41,6 +43,10 @@ end
 
 function lib:set_tri_func( _func )
 	g_raster_tri_func = _func or default_raster_tri
+end
+
+function lib:set_clip_far( _bool )
+	g_clip_far = _bool
 end
 
 --------------------------------------------------------
@@ -73,9 +79,9 @@ local g_default_mip_function = lib.mip_func_floor
 
 function lib:select_mip(_dval, _max, _mip_function)
 	local n = _mip_function(1/_dval)
+	local po2_next = rmath:round_up_to_po2(n)
 	local po2      = rmath:round_down_to_po2(n) -- divident power of two
-	local po2_next = po2 * 2
-	local fraction = (po2_next > po2) and ((1/_dval) - po2) / (po2_next - po2) or 0
+	local fraction = (po2 ~= po2_next) and (((1/_dval) - po2) / (po2_next - po2)) or 0
 	
 	local mip = math.log(po2)/math.log(2.0) + 1 -- po2 exponent
 	if mip > _max then
@@ -128,7 +134,7 @@ end
 function lib:get_mip_UVs(_p1,_p2,_p3,_p4, _base_width, _base_height, _mip_function)
 	local dvalx = (math.max(_p1.X, _p2.X, _p3.X, _p4.X) - math.min(_p1.X, _p2.X, _p3.X, _p4.X)) / _base_width
 	local dvaly = (math.max(_p1.Y, _p2.Y, _p3.Y, _p4.Y) - math.min(_p1.Y, _p2.Y, _p3.Y, _p4.Y)) / _base_height
-	local dval = math.min(dvalx, dvaly)
+	local dval = (dvalx > dvaly) and dvalx or dvaly
 	
 	local mip, po2, fraction = lib:select_mip(dval, 35, _mip_function and _mip_function or g_default_mip_function)
 	local mval = 1 / po2 -- mip width
@@ -392,7 +398,7 @@ function lib:raster_triangle(_tri, _render_width, _render_height)
 	
 	local far_count = count_over_value(-g_far, p1.Z, p2.Z, p3.Z)
 	if far_count == 0 then return end -- in front of far plane
-
+	
 	local nearclipped = {}
 	local farclipped  = {}
 
@@ -405,6 +411,7 @@ function lib:raster_triangle(_tri, _render_width, _render_height)
 
 	-- clip far plane
 	if far_count == 1 or far_count == 2 then
+		if not g_clip_far then return end
 		clip_triangles_plane(nearclipped, farclipped, vec3(0, 0, -g_far), vec3(0, 0, 1.0))
 	elseif far_count == 3 then
 		farclipped = nearclipped
@@ -439,6 +446,8 @@ function lib:raster_quad(_quad, _render_width, _render_height)
 		
 		clip_and_raster_quad({t1,t2,t3,t4}, _render_width, _render_height)
 	else
+		if far_count ~= 4 and not g_clip_far then return end 
+		
 		lib:raster_triangle({_quad[1],_quad[2],_quad[3]},_render_width,_render_height)
 		lib:raster_triangle({_quad[1],_quad[3],_quad[4]},_render_width,_render_height)
 	end
