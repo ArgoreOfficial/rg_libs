@@ -175,7 +175,7 @@ local function create_shader_smooth_quad(_texture)
 		)
 		
 		-- shading
-		local depth = 20
+		local depth = 10
 		local c1,c2,c3,c4 = _p2.Z/depth, _p1.Z/depth, _p4.Z/depth, _p3.Z/depth
 		quad_shading(_p2,_p1,_p4,_p3,color.red,c1,c2,c3,c4) -- TODO: fix order
 
@@ -212,6 +212,12 @@ local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4)
 	if mip > 1 then
 		gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4, miptexture, u2, v2, mip0col, color.clear)
 	end
+
+
+	-- shading
+	local depth = 10
+	local c1,c2,c3,c4 = _p2.Z/depth, _p1.Z/depth, _p4.Z/depth, _p3.Z/depth
+	quad_shading(_p2,_p1,_p4,_p3,color.red,c1,c2,c3,c4) -- TODO: fix order
 
 end
 

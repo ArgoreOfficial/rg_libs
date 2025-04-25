@@ -4,11 +4,11 @@ require("RetroGadgets.spritesheet")
 
 local rom_spritesheet_meta = {}
 function rom_spritesheet_meta:__index(_k)
-    local ret,img = pcall(love.graphics.newImage, "assets/" .. _k)
+    local ret,img = pcall(love.graphics.newImage, "Import/" .. _k)
     if not ret then
         return nil
     end
-    return _spritesheet("assets/" .. _k, img, img:getWidth(), img:getHeight() )
+    return _spritesheet("Import/" .. _k, img, img:getWidth(), img:getHeight() )
 end
 
 local function _create_romsystem()
