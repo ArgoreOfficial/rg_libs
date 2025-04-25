@@ -95,7 +95,7 @@ local function _push_cmd_draw(_func, _depth, ...)
 	end
 
 	g_current_renderpass[_depth] = {
-		func = g_raster_quad_func,
+		func = _func,
 		args = {...}
 	}
 end
@@ -391,29 +391,19 @@ local function clip_and_raster_triangle(
 
 	for i=1, #draw_list do
 		if g_raster_tri_func then 
-			local depth_key = (draw_list[i][1].Z + draw_list[i][2].Z + draw_list[i][3].Z) / 3
-
 			if not g_current_renderpass then
 				error("No renderpass")
 			end
 
-			while g_current_renderpass[ depth_key ] ~= nil do
-				depth_key = depth_key + 0.001
-			end
-
-			g_current_renderpass[ depth_key ] = {
-				func = g_raster_tri_func,
-				args = {
-					rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
-					rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
-					rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z)
-				}
-			}
-
-			--g_raster_tri_func(
-			--	rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
-			--	rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
-			--	rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z))
+			_push_cmd_draw(
+				g_raster_tri_func, 
+				(draw_list[i][1].Z + draw_list[i][2].Z + draw_list[i][3].Z) / 3, 
+				rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
+				rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
+				rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z),
+				0,
+				{}
+			)
 		end
 	end
 end
@@ -426,9 +416,10 @@ local function clip_and_raster_quad(
 	_left_clip_count,   -- optional: use these if you've precomputed 
 	_right_clip_count,  -- which points are inside the view frustum
 	_top_clip_count,    -- 
-	_bottom_clip_count  -- 
+	_bottom_clip_count, -- 
+	_shader_input
 )
-	local p1,p2,p3,p4 = table.unpack(_quad)
+	local p1,p2,p3,p4 = _quad[1], _quad[2], _quad[3], _quad[4]
 	
 	local left_clip = _left_clip_count or count_over_value(-g_clip_margin, p1.X, p2.X, p3.X, p4.X)
 	if left_clip == 0 then return end
@@ -452,12 +443,13 @@ local function clip_and_raster_quad(
 
 		_push_cmd_draw(
 			g_raster_quad_func, 
-			(p1.Z + p2.Z + p3.Z + p4.Z), 
+			(p1.Z + p2.Z + p3.Z + p4.Z)/2, 
 			rmath:vec3_to_screen(p1, _render_width, _render_height, p1.Z),
 			rmath:vec3_to_screen(p2, _render_width, _render_height, p2.Z),
 			rmath:vec3_to_screen(p3, _render_width, _render_height, p3.Z),
 			rmath:vec3_to_screen(p4, _render_width, _render_height, p4.Z),
-			view_normal
+			view_normal,
+			_shader_input
 		)
 	else
 		clip_and_raster_triangle({p1,p2,p3}, _render_width, _render_height )
@@ -504,7 +496,7 @@ function lib:raster_triangle(_tri, _render_width, _render_height)
 	end
 end
 
-function lib:raster_quad(_quad, _render_width, _render_height)
+function lib:raster_quad(_quad, _render_width, _render_height, _shader_input)
 	local p1 = lib:to_view(_quad[1])
 	local p2 = lib:to_view(_quad[2])
 	local p3 = lib:to_view(_quad[3])
@@ -522,7 +514,7 @@ function lib:raster_quad(_quad, _render_width, _render_height)
 		local t3 = lib:view_to_clip(p3)
 		local t4 = lib:view_to_clip(p4)
 		
-		clip_and_raster_quad({t1,t2,t3,t4}, _render_width, _render_height)
+		clip_and_raster_quad({t1,t2,t3,t4}, _render_width, _render_height, nil, nil, nil, nil, _shader_input)
 	else
 		if far_count ~= 4 and not g_clip_far then return end 
 		

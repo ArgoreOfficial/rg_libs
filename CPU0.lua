@@ -142,42 +142,27 @@ local function quad_shading(_p1,_p2,_p3,_p4,_color,_val1,_val2,_val3,_val4)
 end
 
 local function create_shader_scrolling_quad(_texture)
-	return function(_p1,_p2,_p3,_p4,_view_normal,_input)		
+	return function(_p1,_p2,_p3,_p4,_view_normal,_shader_input)		
 		local t = (gdt.CPU0.Time * 16) % 32
-		local c = 1 - rmath:vec3_normalize(_view_normal).Z
 		gdt.VideoChip0:RasterCustomSprite(
 			_p1,_p2,_p3,_p4,
 			_texture,
 			vec2(0,t),vec2(64,32),
-			Color(255,255,255),
+			color.white,
 			color.clear
 		)
+		
+		local d = rmath:vec3_dot(_shader_input.normal, rmath:vec3_normalize(vec3(math.sin(gdt.CPU0.Time),math.cos(gdt.CPU0.Time),0)))
 
-		local c = 1 - (_view_normal.Z / 50) -- z / g_far
-		local mip = rg3d:get_mip_level(_p1, _p2, _p3, _p4, 100, 100) - 1
-		mip = math.min(math.max(0, mip), 3)
-		print(mip)
-		gdt.VideoChip0:RasterCustomSprite(
-			_p1,_p2,_p3,_p4,
-			shading_grid,
-			vec2(mip*64,0),vec2(64,64),
-			Color(255,255,255),
-			color.clear
-		)
-
-		--_view_normal = rmath:vec3_normalize(_view_normal)
-		--local x1 = 1 - (c - _p2.X / screen_width)
-		--local x2 = 1 - (c - _p3.X / screen_width)
-		--local x3 = 1 - (c - _p4.X / screen_width)
-		--local x4 = 1 - (c - _p1.X / screen_width)
-		--print(c)
-		--quad_shading(_p2,_p3,_p4,_p1,color.black,x1,x2,x3,x4) -- TODO: fix order
+		_view_normal = rmath:vec3_normalize(_view_normal)
+		local c = 1 - _view_normal.Z
+		quad_shading(_p2,_p3,_p4,_p1,color.white,d,d,d,d) -- TODO: fix order
 	end
 end
 
 
 local function create_shader_smooth_quad(_texture)
-	return function(_p1,_p2,_p3,_p4,_view_normal)		
+	return function(_p1,_p2,_p3,_p4,_view_normal,_shader_input)		
 		local c = rmath:vec3_normalize(_view_normal).Z
 		
 		gdt.VideoChip0:RasterCustomSprite(
@@ -212,7 +197,7 @@ local function raster_quad_sprite(_p1,_p2,_p3,_p4)
 	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,vec2(0,0),vec2(64,64),col,color.red)
 end
 
-local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4)
+local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4,_view_normal,_shader_input)
 	local u, v, fraction = rg3d:get_mip_UVs(_p1, _p2, _p3, _p4, 64, 64)
 	local mip = rg3d:get_mip_level(_p1, _p2, _p3, _p4, 64, 64)
 
@@ -284,7 +269,7 @@ function update()
 				p2 = quad_vbo[tri + 1] + rmath:vec4(-x,0,y,0)
 				p3 = quad_vbo[tri + 2] + rmath:vec4(-x,0,y,0)
 				p4 = quad_vbo[tri + 3] + rmath:vec4(-x,0,y,0)
-				rg3d:raster_quad({p1,p2,p3,p4},screen_width,screen_height)
+				rg3d:raster_quad({p1,p2,p3,p4}, screen_width, screen_height, {Color(255,0,0)})
 			end
 		end
 	end
@@ -317,7 +302,7 @@ function update()
 	for i = 1, #torus_drawlist do
 		local ws = scale_quad(torus_drawlist[i], vec3( 1.3+scale_x, 1.3+scale_z, 1.3+scale_x ) )
 		ws = translate_quad(ws, vec3(-3,2,0))
-		rg3d:raster_quad(ws,screen_width,screen_height)
+		rg3d:raster_quad(ws, screen_width, screen_height, {normal=vec3(0,1,0)})
 	end
 	
 	rg3d:set_quad_func(smooth_quad_shader)
