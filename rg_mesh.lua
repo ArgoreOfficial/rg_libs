@@ -7,13 +7,27 @@ function lib:parse_obj(_path)
 	local mesh = {}
 	
 	for i = 1, #asset.f do
-		local face = {}
-		local face_str = "  { "
-		for f = 1, #asset.f[i] do
-			local vert = asset.v[asset.f[i][f].v]
-			face[#face+1] = vec3(vert.x, vert.y, vert.z)
+		local face = {verts={},normals={}}
+
+		for f = 1, #asset.f[i] do		
+			local vn_index = asset.f[i][f].vn
+			local v_index  = asset.f[i][f].v
+			
+			local vert   = asset.v[v_index]
+			local normal = asset.vn[vn_index]
+
+			table.insert(face.verts, vec3(vert.x, vert.y, vert.z))
+
+			if normal then
+				table.insert(face.normals, vec3(normal.x, normal.y, normal.z))
+			else
+				table.insert(face.normals, vec3(1,0,0))
+			end
+
 		end
-		mesh[#mesh+1] = face
+
+		table.insert(mesh, face)
+
 	end
 	
 	return mesh	
@@ -30,7 +44,7 @@ function lib:export_mesh(_mesh)
 
 	for i = 1, #_mesh do
 		local face_str = "  { "
-		for f = 1, #_mesh[i] do
+		for f = 1, #_mesh[i].face do
 			-- string
 			face_str = face_str .. "vec3(" .. vec3_str(_mesh[i][f]) .. ")"
 			if f ~= #_mesh[i] then

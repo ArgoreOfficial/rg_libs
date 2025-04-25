@@ -152,11 +152,15 @@ local function create_shader_scrolling_quad(_texture)
 			color.clear
 		)
 		
-		local d = rmath:vec3_dot(_shader_input.normal, rmath:vec3_normalize(vec3(math.sin(gdt.CPU0.Time),math.cos(gdt.CPU0.Time),0)))
+		local light_dir = vec3(math.cos(gdt.CPU0.Time), 0, math.sin(gdt.CPU0.Time))
+		local d1 = rmath:vec3_dot(_shader_input.normals[1], rmath:vec3_normalize(light_dir))
+		local d2 = rmath:vec3_dot(_shader_input.normals[2], rmath:vec3_normalize(light_dir))
+		local d3 = rmath:vec3_dot(_shader_input.normals[3], rmath:vec3_normalize(light_dir))
+		local d4 = rmath:vec3_dot(_shader_input.normals[4], rmath:vec3_normalize(light_dir))
 
 		_view_normal = rmath:vec3_normalize(_view_normal)
 		local c = 1 - _view_normal.Z
-		quad_shading(_p2,_p3,_p4,_p1,color.white,d,d,d,d) -- TODO: fix order
+		quad_shading(_p2,_p3,_p4,_p1,color.black,d1,d2,d3,d4) -- TODO: fix order
 	end
 end
 
@@ -228,9 +232,10 @@ end
 local palette_quad_shader = create_shader_scrolling_quad(palette)
 local smooth_quad_shader  = create_shader_smooth_quad(steve)
 
---local rmesh = require "rg_mesh"
+local rmesh = require "rg_mesh"
+local torus_drawlist = rmesh:parse_obj("torus.obj")
 
-local torus_drawlist = require "torus_obj" -- rmesh:parse_obj("torus.obj")
+--local torus_drawlist = require "torus_obj" -- rmesh:parse_obj("torus.obj")
 --rmesh:export_mesh( torus_drawlist )
 
 -- update function is repeated every time tick
@@ -269,7 +274,7 @@ function update()
 				p2 = quad_vbo[tri + 1] + rmath:vec4(-x,0,y,0)
 				p3 = quad_vbo[tri + 2] + rmath:vec4(-x,0,y,0)
 				p4 = quad_vbo[tri + 3] + rmath:vec4(-x,0,y,0)
-				rg3d:raster_quad({p1,p2,p3,p4}, screen_width, screen_height, {Color(255,0,0)})
+				rg3d:raster_quad({p1,p2,p3,p4}, screen_width, screen_height, {})
 			end
 		end
 	end
@@ -300,16 +305,18 @@ function update()
 	local scale_z = 0--rmath.ncos(gdt.CPU0.Time * 4)
 
 	for i = 1, #torus_drawlist do
-		local ws = scale_quad(torus_drawlist[i], vec3( 1.3+scale_x, 1.3+scale_z, 1.3+scale_x ) )
+		local ws = scale_quad(torus_drawlist[i].verts, vec3( 1.3+scale_x, 1.3+scale_z, 1.3+scale_x ) )
 		ws = translate_quad(ws, vec3(-3,2,0))
-		rg3d:raster_quad(ws, screen_width, screen_height, {normal=vec3(0,1,0)})
+		local shader_input = {
+			normals = torus_drawlist[i].normals
+		}
+		rg3d:raster_quad(ws, screen_width, screen_height, shader_input)
 	end
 	
 	rg3d:set_quad_func(smooth_quad_shader)
 	rg3d:raster_quad(translate_quad(scale_quad(quad_vbo, vec3(2,0,2)), vec3(4,1,0)),screen_width,screen_height)
 	rg3d:end_render()
 	
-
 	gdt.VideoChip0:RenderOnScreen()
 	gdt.VideoChip0:Clear(color.black)
 
