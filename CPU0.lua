@@ -3,8 +3,11 @@
 local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
 
-local palette = gdt.ROM.User.SpriteSheets["stripes.png"]
-local miptexture  = gdt.ROM.User.SpriteSheets["mipmap64.png"]
+local palette    = gdt.ROM.User.SpriteSheets["stripes.png"]
+local miptexture = gdt.ROM.User.SpriteSheets["mipmap64.png"]
+local shading    = gdt.ROM.User.SpriteSheets["shading.png"]
+local steve      = gdt.ROM.User.SpriteSheets["steve_beetle.png"]
+
 gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
 -- this has to be grabbed after because of love2d stuff
 local rb1 = gdt.VideoChip0.RenderBuffers[1]
@@ -87,41 +90,97 @@ local function get_move_wish()
 	return rmath:vec3_normalize(move_wish)
 end
 
-local function raster_quad(_p1,_p2,_p3,_p4)
-	gdt.VideoChip0:FillTriangle( _p1, _p2, _p3, color.blue )
-	gdt.VideoChip0:FillTriangle( _p1, _p3, _p4, color.blue )
-end
-
-local function orientation(_p1,_p2,_p3)
-	-- orientation of an (x, y) triplet
-    local val = ((_p2.Y - _p1.Y) * (_p3.Z - _p2.X)) -
-                ((_p2.X - _p1.Z) * (_p3.Y - _p2.Y)) ;
-
-    if val == 0 then
-        return 0
-    elseif val > 0 then
-        return 1
-    else
-        return -1
-	end
-end
-
-local function FillQuad(p1,p2,p3,p4,color)
+local function raster_rect(p1,p2,p3,p4,color)
 	gdt.VideoChip0:FillTriangle(p1,p2,p3,color)
 	gdt.VideoChip0:FillTriangle(p1,p3,p4,color)
 end
 
-local function create_shader_fog_quad(_texture)
+local function raster_quad(_p1,_p2,_p3,_p4)
+	raster_rect(_p1,_p2,_p3,_p4,color.blue)
+end
+
+local function quad_shading(_p1,_p2,_p3,_p4,_color,_val1,_val2,_val3,_val4)
+	local alpha = math.min(_val1,_val2,_val3,_val4)
+	--local alpha = ((_val1+_val2+_val3+_val4) / 4)
+	raster_rect(
+		_p1,_p2,_p3,_p4,
+		ColorRGBA(_color.R,_color.G,_color.B, 255 * alpha)
+	)
+
+	gdt.VideoChip0:RasterCustomSprite(
+		_p1,_p2,_p3,_p4,
+		shading,
+		vec2(0,0),vec2(64,64),
+		ColorRGBA(_color.R,_color.G,_color.B, 255 * (_val1-alpha) ),
+		color.clear
+	)
+	
+	gdt.VideoChip0:RasterCustomSprite(
+		_p1,_p2,_p3,_p4,
+		shading,
+		vec2(64,0),vec2(64,64),
+		ColorRGBA(_color.R,_color.G,_color.B, 255 * (_val2-alpha) ),
+		color.clear
+	)
+	
+	gdt.VideoChip0:RasterCustomSprite(
+		_p1,_p2,_p3,_p4,
+		shading,
+		vec2(128,0),vec2(64,64),
+		ColorRGBA(_color.R,_color.G,_color.B, 255 * (_val3-alpha) ),
+		color.clear
+	)
+	
+	gdt.VideoChip0:RasterCustomSprite(
+		_p1,_p2,_p3,_p4,
+		shading,
+		vec2(128+64,0),vec2(64,64),
+		ColorRGBA(_color.R,_color.G,_color.B, 255 * (_val4-alpha) ),
+		color.clear
+	)
+end
+
+local function create_shader_scrolling_quad(_texture)
 	return function(_p1,_p2,_p3,_p4,_view_normal)		
 		local t = (gdt.CPU0.Time * 16) % 32
-		local c = rmath:vec3_normalize(_view_normal).Z
+		local c = 1 - rmath:vec3_normalize(_view_normal).Z
 		gdt.VideoChip0:RasterCustomSprite(
 			_p1,_p2,_p3,_p4,
 			_texture,
 			vec2(0,t),vec2(64,32),
-			color.white,
+			Color(255,255,255),
 			color.clear
 		)
+
+		local x1 = _p2.X / screen_width
+		local x2 = _p3.X / screen_width
+		local x3 = _p4.X / screen_width
+		local x4 = _p1.X / screen_width
+
+		quad_shading(_p2,_p3,_p4,_p1,color.white,x1,x2,x3,x4) -- TODO: fix order
+	end
+end
+
+
+local function create_shader_smooth_quad(_texture)
+	return function(_p1,_p2,_p3,_p4,_view_normal)		
+		local c = rmath:vec3_normalize(_view_normal).Z
+		
+		gdt.VideoChip0:RasterCustomSprite(
+			_p1,_p2,_p3,_p4,
+			_texture,
+			vec2(0,0),vec2(64,64),
+			Color(255,255,255),
+			color.clear
+		)
+		
+		-- shading
+		local depth = 20
+		local c1,c2,c3,c4 = _p2.Z/depth, _p1.Z/depth, _p4.Z/depth, _p3.Z/depth
+		quad_shading(_p2,_p1,_p4,_p3,color.red,c1,c2,c3,c4) -- TODO: fix order
+
+		--quad_shading(_p2,_p3,_p4,_p1,color.white,f1,f2,f3,f4) -- TODO: fix order
+		--quad_shading(_p2,_p3,_p4,_p1,color.black,0.5,0.5,0.5,0.5) -- TODO: fix order
 	end
 end
 
@@ -168,7 +227,8 @@ local function vec3_mult(_lhs,_rhs)
 	)
 end
 
-local palette_quad_shader = create_shader_fog_quad(palette)
+local palette_quad_shader = create_shader_scrolling_quad(palette)
+local smooth_quad_shader  = create_shader_smooth_quad(steve)
 
 --local rmesh = require "rg_mesh"
 
@@ -238,17 +298,22 @@ function update()
 		}
 	end
 
-	local scale_x = rmath:nsin(gdt.CPU0.Time * 4)
-	local scale_z = rmath:ncos(gdt.CPU0.Time * 4)
-
+	local scale_x = 0--rmath.nsin(gdt.CPU0.Time * 4)
+	local scale_z = 0--rmath.ncos(gdt.CPU0.Time * 4)
 
 	for i = 1, #torus_drawlist do
 		local ws = scale_quad(torus_drawlist[i], vec3( 1.3+scale_x, 1.3+scale_z, 1.3+scale_x ) )
-		ws = translate_quad(ws, vec3(3,2,0))
+		ws = translate_quad(ws, vec3(-3,2,0))
 		rg3d:raster_quad(ws,screen_width,screen_height)
 	end
-
+	
 	rg3d:end_render()
+	
+	rg3d:begin_render()
+	rg3d:set_quad_func(smooth_quad_shader)
+	rg3d:raster_quad(translate_quad(scale_quad(quad_vbo, vec3(10,0,10)), vec3(0,1,0)),screen_width,screen_height)
+	rg3d:end_render()
+	
 
 	gdt.VideoChip0:RenderOnScreen()
 	gdt.VideoChip0:Clear(color.black)
