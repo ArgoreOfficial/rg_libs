@@ -6,6 +6,7 @@ local rg3d  = require("rg_3d")
 local palette    = gdt.ROM.User.SpriteSheets["stripes.png"]
 local miptexture = gdt.ROM.User.SpriteSheets["mipmap64.png"]
 local shading    = gdt.ROM.User.SpriteSheets["shading.png"]
+local shading_grid = gdt.ROM.User.SpriteSheets["shading_grid.png"]
 local steve      = gdt.ROM.User.SpriteSheets["steve_beetle.png"]
 
 gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
@@ -141,7 +142,7 @@ local function quad_shading(_p1,_p2,_p3,_p4,_color,_val1,_val2,_val3,_val4)
 end
 
 local function create_shader_scrolling_quad(_texture)
-	return function(_p1,_p2,_p3,_p4,_view_normal)		
+	return function(_p1,_p2,_p3,_p4,_view_normal,_input)		
 		local t = (gdt.CPU0.Time * 16) % 32
 		local c = 1 - rmath:vec3_normalize(_view_normal).Z
 		gdt.VideoChip0:RasterCustomSprite(
@@ -152,12 +153,25 @@ local function create_shader_scrolling_quad(_texture)
 			color.clear
 		)
 
-		local x1 = _p2.X / screen_width
-		local x2 = _p3.X / screen_width
-		local x3 = _p4.X / screen_width
-		local x4 = _p1.X / screen_width
+		local c = 1 - (_view_normal.Z / 50) -- z / g_far
+		local mip = rg3d:get_mip_level(_p1, _p2, _p3, _p4, 100, 100) - 1
+		mip = math.min(math.max(0, mip), 3)
+		print(mip)
+		gdt.VideoChip0:RasterCustomSprite(
+			_p1,_p2,_p3,_p4,
+			shading_grid,
+			vec2(mip*64,0),vec2(64,64),
+			Color(255,255,255),
+			color.clear
+		)
 
-		quad_shading(_p2,_p3,_p4,_p1,color.white,x1,x2,x3,x4) -- TODO: fix order
+		--_view_normal = rmath:vec3_normalize(_view_normal)
+		--local x1 = 1 - (c - _p2.X / screen_width)
+		--local x2 = 1 - (c - _p3.X / screen_width)
+		--local x3 = 1 - (c - _p4.X / screen_width)
+		--local x4 = 1 - (c - _p1.X / screen_width)
+		--print(c)
+		--quad_shading(_p2,_p3,_p4,_p1,color.black,x1,x2,x3,x4) -- TODO: fix order
 	end
 end
 
@@ -175,9 +189,9 @@ local function create_shader_smooth_quad(_texture)
 		)
 		
 		-- shading
-		local depth = 10
-		local c1,c2,c3,c4 = _p2.Z/depth, _p1.Z/depth, _p4.Z/depth, _p3.Z/depth
-		quad_shading(_p2,_p1,_p4,_p3,color.red,c1,c2,c3,c4) -- TODO: fix order
+		--local depth = 10
+		--local c1,c2,c3,c4 = _p2.Z/depth, _p1.Z/depth, _p4.Z/depth, _p3.Z/depth
+		--quad_shading(_p2,_p1,_p4,_p3,color.red,c1,c2,c3,c4) -- TODO: fix order
 
 		--quad_shading(_p2,_p3,_p4,_p1,color.white,f1,f2,f3,f4) -- TODO: fix order
 		--quad_shading(_p2,_p3,_p4,_p1,color.black,0.5,0.5,0.5,0.5) -- TODO: fix order
@@ -212,13 +226,6 @@ local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4)
 	if mip > 1 then
 		gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4, miptexture, u2, v2, mip0col, color.clear)
 	end
-
-
-	-- shading
-	local depth = 10
-	local c1,c2,c3,c4 = _p2.Z/depth, _p1.Z/depth, _p4.Z/depth, _p3.Z/depth
-	quad_shading(_p2,_p1,_p4,_p3,color.red,c1,c2,c3,c4) -- TODO: fix order
-
 end
 
 local function raster_tri_sprite(_p1,_p2,_p3)
@@ -313,11 +320,8 @@ function update()
 		rg3d:raster_quad(ws,screen_width,screen_height)
 	end
 	
-	rg3d:end_render()
-	
-	rg3d:begin_render()
 	rg3d:set_quad_func(smooth_quad_shader)
-	rg3d:raster_quad(translate_quad(scale_quad(quad_vbo, vec3(10,0,10)), vec3(0,1,0)),screen_width,screen_height)
+	rg3d:raster_quad(translate_quad(scale_quad(quad_vbo, vec3(2,0,2)), vec3(4,1,0)),screen_width,screen_height)
 	rg3d:end_render()
 	
 
