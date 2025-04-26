@@ -1,12 +1,13 @@
 -- Retro Gadgets
+local IS_RG = _VERSION == "Luau"
 
 local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
+local rmesh = nil
+if not IS_RG then rmesh = require "rg_mesh" end
 
 local palette    = gdt.ROM.User.SpriteSheets["stripes.png"]
-local miptexture = gdt.ROM.User.SpriteSheets["mipmap64.png"]
 local shading    = gdt.ROM.User.SpriteSheets["shading_cross.png"]
-local steve      = gdt.ROM.User.SpriteSheets["steve_beetle.png"]
 
 gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
 -- this has to be grabbed after because of love2d stuff
@@ -86,8 +87,8 @@ local function get_move_wish()
 	local forward = rot_to_dir(cam_pitch, cam_yaw)
 
 	local move_wish = right   * move_input.X + 
-	                  up      * move_input.Y + 
-	                  forward * move_input.Z
+					  up      * move_input.Y + 
+					  forward * move_input.Z
 
 	return rmath:vec3_normalize(move_wish)
 end
@@ -193,15 +194,15 @@ end
 
 local function orientation(_p1,_p2,_p3)
 	-- orientation of an (x, y) triplet
-    local val = ((_p2.Y - _p1.Y) * (_p3.Z - _p2.X)) -
-                ((_p2.X - _p1.Z) * (_p3.Y - _p2.Y)) ;
+	local val = ((_p2.Y - _p1.Y) * (_p3.Z - _p2.X)) -
+				((_p2.X - _p1.Z) * (_p3.Y - _p2.Y)) ;
 
-    if val == 0 then
-        return 0
-    elseif val > 0 then
-        return 1
-    else
-        return -1
+	if val == 0 then
+		return 0
+	elseif val > 0 then
+		return 1
+	else
+		return -1
 	end
 end
 
@@ -288,7 +289,6 @@ local function shader_tri_random(_p1,_p2,_p3,_shader_input)
 	gdt.VideoChip0:FillTriangle(_p1,_p2,_p3,color)
 end
 
-local rmesh = require "rg_mesh"
 --local torus_drawlist = rmesh:parse_obj("torus.obj")
 --rmesh:export_mesh( torus_drawlist )
 local torus_drawlist = require "torus_obj" -- rmesh:parse_obj("torus.obj")
@@ -360,15 +360,21 @@ local function draw_mesh(_drawlist,_scale,_translation)
 end
 
 local function hex2rgb(hex)
-    hex = hex:gsub("#","")
-    return tonumber("0x"..hex:sub(1,2)), tonumber("0x"..hex:sub(3,4)), tonumber("0x"..hex:sub(5,6))
+	hex = hex:gsub("#","")
+	return tonumber("0x"..hex:sub(1,2)), tonumber("0x"..hex:sub(3,4)), tonumber("0x"..hex:sub(5,6))
 end
 
 local function load_logo_mesh(_color)
 	local color = Color(hex2rgb(_color))
 	local name = "logo_mesh/logo_" .. _color .. ".obj"
-	return {
-		mesh = rmesh:parse_obj(name), 
+	--local mesh = rmesh:parse_obj(name)
+	
+	local mesh_path = "logo_" .. _color
+	if IS_RG then mesh_path = mesh_path .. ".lua" end
+	local mesh = require(mesh_path)
+
+	local model = {
+		mesh = mesh, 
 		q_func = create_shader_flat_shaded_quad(color),
 		t_func = create_shader_flat_shaded_tri(color),
 		draw = function(self,_scale,_translation)
@@ -377,6 +383,10 @@ local function load_logo_mesh(_color)
 			draw_mesh(self.mesh, _scale, _translation)
 		end
 	}
+
+	--rmesh:export_mesh( "logo_" .. _color .. ".lua", mesh )
+
+	return model
 end
 
 local logo_000000 = load_logo_mesh("000000")
@@ -415,7 +425,7 @@ function update()
 	
 		-- Render Logo
 		local pos = vec3(0,0,5)
-		local size = vec3(10,math.min(10, gdt.CPU0.Time * 5),10)
+		local size = vec3(10,math.min(20, gdt.CPU0.Time * 5),10)
 
 		logo_000000:draw(size, pos)
 		logo_FBF236:draw(size, pos)

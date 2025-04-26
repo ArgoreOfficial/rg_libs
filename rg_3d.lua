@@ -78,11 +78,14 @@ function lib:end_render()
 	for k in pairs(g_current_renderpass) do table.insert(tkeys, k) end
 	
 	table.sort(tkeys)
-	
+	local num_drawcalls = 0
 	for _, k in ipairs(tkeys) do 
 		g_current_renderpass[k].func(unpack(g_current_renderpass[k].args))
+		num_drawcalls = num_drawcalls + 1
 	end
 	
+	print("Drawcalls:", num_drawcalls)
+
 	g_current_renderpass = nil
 end
 

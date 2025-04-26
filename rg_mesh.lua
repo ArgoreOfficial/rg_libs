@@ -39,7 +39,7 @@ local function vec3_str(_vec)
         .. tostring(_vec.Z)
 end
 
-function lib:export_mesh(_mesh)
+function lib:export_mesh(_name,_mesh)
 	local file_str = "return {\n"
 
 	for i = 1, #_mesh do
@@ -80,7 +80,7 @@ function lib:export_mesh(_mesh)
 	--	print ('file not created: '..message)
 	--end
 	
-	local file = io.open("torus_obj.lua", "w")
+	local file = io.open(_name, "w")
 	if file then
 		file:write(file_str)
 		file:close()
