@@ -37,6 +37,8 @@ local cam_pitch = 0
 local cam_yaw   = rmath.const.PI
 local cam_dir   = vec3(0,0,-1)
 
+local sun_dir = vec3(0,-1,0)
+
 local function rot_to_dir(_pitch, _yaw)
 	return vec3(
 		math.cos(_yaw)*math.cos(_pitch),
@@ -159,18 +161,16 @@ end
 local function create_shader_scrolling_quad(_texture, _width, _height, _scroll_x, _scroll_y)
 	return function(_p1,_p2,_p3,_p4,_shader_input)		
 		local t = (gdt.CPU0.Time * 16) % 32
-		local light_dir = vec3(math.cos(gdt.CPU0.Time), 0, math.sin(gdt.CPU0.Time))
-		light_dir = rmath:vec3_normalize(light_dir)
 		
-		local n1 = (_shader_input and _shader_input.normals) and _shader_input.normals[1] or -light_dir
-		local n2 = (_shader_input and _shader_input.normals) and _shader_input.normals[2] or -light_dir
-		local n3 = (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -light_dir
-		local n4 = (_shader_input and _shader_input.normals) and _shader_input.normals[4] or -light_dir
+		local n1 = (_shader_input and _shader_input.normals) and _shader_input.normals[1] or -sun_dir
+		local n2 = (_shader_input and _shader_input.normals) and _shader_input.normals[2] or -sun_dir
+		local n3 = (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -sun_dir
+		local n4 = (_shader_input and _shader_input.normals) and _shader_input.normals[4] or -sun_dir
 		
-		local d1 = rmath:vec3_dot(n1, light_dir) * 0.5 + 0.5
-		local d2 = rmath:vec3_dot(n2, light_dir) * 0.5 + 0.5
-		local d3 = rmath:vec3_dot(n3, light_dir) * 0.5 + 0.5
-		local d4 = rmath:vec3_dot(n4, light_dir) * 0.5 + 0.5
+		local d1 = rmath:vec3_dot(n1, -sun_dir) * 0.5 + 0.5
+		local d2 = rmath:vec3_dot(n2, -sun_dir) * 0.5 + 0.5
+		local d3 = rmath:vec3_dot(n3, -sun_dir) * 0.5 + 0.5
+		local d4 = rmath:vec3_dot(n4, -sun_dir) * 0.5 + 0.5
 		
 		local c = math.min(d1,d2,d3,d4)*255
 
@@ -205,23 +205,40 @@ local function orientation(_p1,_p2,_p3)
 	end
 end
 
-local function create_shader_triangle(_color)
+local function create_shader_flat_shaded_tri(_color)
 	return function(_p1,_p2,_p3,_shader_input)		
 		local t = (gdt.CPU0.Time * 16) % 32
-		local light_dir = vec3(math.cos(gdt.CPU0.Time), 0, math.sin(gdt.CPU0.Time))
-		light_dir = rmath:vec3_normalize(light_dir)
 		
-		local n1 = (_shader_input and _shader_input.normals) and _shader_input.normals[1] or -light_dir
-		local n2 = (_shader_input and _shader_input.normals) and _shader_input.normals[2] or -light_dir
-		local n3 = (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -light_dir
+		local n1 = (_shader_input and _shader_input.normals) and _shader_input.normals[1] or -sun_dir
+		local n2 = (_shader_input and _shader_input.normals) and _shader_input.normals[2] or -sun_dir
+		local n3 = (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -sun_dir
 		
-		local d1 = rmath:vec3_dot(n1, light_dir) * 0.5 + 0.5
-		local d2 = rmath:vec3_dot(n2, light_dir) * 0.5 + 0.5
-		local d3 = rmath:vec3_dot(n3, light_dir) * 0.5 + 0.5
+		local d1 = rmath:vec3_dot(n1, -sun_dir) * 0.5 + 0.5
+		local d2 = rmath:vec3_dot(n2, -sun_dir) * 0.5 + 0.5
+		local d3 = rmath:vec3_dot(n3, -sun_dir) * 0.5 + 0.5
 		
 		local c = math.min(d1,d2,d3)
 
 		gdt.VideoChip0:FillTriangle(_p1,_p2,_p3,Color(_color.R*c,_color.G*c,_color.B*c))
+		--quad_shading(_p3,_p4,_p1,_p2,color.black,d1,d2,d3,d4)
+	end
+end
+
+local function create_shader_flat_shaded_quad(_color)
+	return function(_p1,_p2,_p3,_p4,_shader_input)		
+		local t = (gdt.CPU0.Time * 16) % 32
+		
+		local n1 = (_shader_input and _shader_input.normals) and _shader_input.normals[1] or -sun_dir
+		local n2 = (_shader_input and _shader_input.normals) and _shader_input.normals[2] or -sun_dir
+		local n3 = (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -sun_dir
+		
+		local d1 = rmath:vec3_dot(n1, -sun_dir) * 0.5 + 0.5
+		local d2 = rmath:vec3_dot(n2, -sun_dir) * 0.5 + 0.5
+		local d3 = rmath:vec3_dot(n3, -sun_dir) * 0.5 + 0.5
+		
+		local c = math.min(d1,d2,d3)
+
+		FillQuad(_p1,_p2,_p3,_p4,Color(_color.R*c,_color.G*c,_color.B*c))
 		--quad_shading(_p3,_p4,_p1,_p2,color.black,d1,d2,d3,d4)
 	end
 end
@@ -257,7 +274,7 @@ end
 local palette_quad_shader = create_shader_scrolling_quad(palette,64,32,0,1)
 local smooth_quad_shader  = create_shader_scrolling_quad(steve,64,64,0,0)
 local chamber_quad_shader = create_shader_scrolling_quad(nil,64,64,0,0)
-local chamber_tri_shader = create_shader_triangle(color.white)
+local chamber_tri_shader  = create_shader_flat_shaded_tri(color.white)
 
 local function shader_quad_random(_p1,_p2,_p3,_p4,_shader_input)		
 	math.randomseed( _shader_input.primitive_index )
@@ -271,24 +288,10 @@ local function shader_tri_random(_p1,_p2,_p3,_shader_input)
 	gdt.VideoChip0:FillTriangle(_p1,_p2,_p3,color)
 end
 
-local quad_shaders = {
-	flat_black = create_shader_quad_flat(color.black),
-	flat_white = create_shader_quad_flat(color.white),
-	flat_random = shader_quad_random
-}
-
-local tri_shaders = {
-	flat_black  = create_shader_tri_flat(color.black),
-	flat_white  = create_shader_tri_flat(color.white),
-	flat_random = shader_tri_random
-}
-
 local rmesh = require "rg_mesh"
 --local torus_drawlist = rmesh:parse_obj("torus.obj")
 --rmesh:export_mesh( torus_drawlist )
-
 local torus_drawlist = require "torus_obj" -- rmesh:parse_obj("torus.obj")
-local chamber_drawlist = rmesh:parse_obj("chamber.obj")
 
 local function translate_tri(_quad, _vec)
 	return {
@@ -366,8 +369,8 @@ local function load_logo_mesh(_color)
 	local name = "logo_mesh/logo_" .. _color .. ".obj"
 	return {
 		mesh = rmesh:parse_obj(name), 
-		q_func = create_shader_quad_flat(color),
-		t_func = create_shader_tri_flat(color),
+		q_func = create_shader_flat_shaded_quad(color),
+		t_func = create_shader_flat_shaded_tri(color),
 		draw = function(self,_scale,_translation)
 			rg3d:set_quad_func(self.q_func)
 			rg3d:set_tri_func(self.t_func)
@@ -394,6 +397,9 @@ function update()
 	if rinput["LeftShift"] then speed = speed * 4 end
 	cam_pos = cam_pos + get_move_wish() * dt * speed
 	
+	local sun_dir = vec3(math.cos(gdt.CPU0.Time), 0, math.sin(gdt.CPU0.Time))
+	sun_dir = rmath:vec3_normalize(sun_dir)
+	
 	-- draw
 
 	gdt.VideoChip0:RenderOnBuffer(1)
@@ -404,20 +410,13 @@ function update()
 		rg3d:set_clip_far( true )
 		rg3d:set_tri_func(chamber_tri_shader)
 		rg3d:set_quad_func(palette_quad_shader) -- set to custom
-		--rg3d:set_quad_func(chamber_quad_shader) -- set to custom
 		
-		local scale_x = 0--rmath.nsin(gdt.CPU0.Time * 4)
-		local scale_z = 0--rmath.ncos(gdt.CPU0.Time * 4)
-
-		draw_mesh(torus_drawlist, vec3( 1.3+scale_x, 1.3+scale_z, 1.3+scale_x ), vec3(-3,2,0))
-	--rg3d:end_render()
+		draw_mesh(torus_drawlist, vec3( 1.3, 1.3, 1.3), vec3(-3,2,0))
 	
-	do -- Render Logo
+		-- Render Logo
 		local pos = vec3(0,0,5)
-		local size = vec3(10,10,10)
+		local size = vec3(10,math.min(10, gdt.CPU0.Time * 5),10)
 
-		--rg3d:begin_render()
-		
 		logo_000000:draw(size, pos)
 		logo_FBF236:draw(size, pos)
 		logo_9BADB7:draw(size, pos)
@@ -426,10 +425,8 @@ function update()
 		logo_696A6A:draw(size, pos)
 		logo_847E87:draw(size, pos)
 		logo_C6B533:draw(size, pos)
-
-		rg3d:end_render()
-		
-	end
+	rg3d:end_render()
+	
 
 
 	gdt.VideoChip0:RenderOnScreen()
