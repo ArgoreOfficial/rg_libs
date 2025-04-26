@@ -5,8 +5,7 @@ local rg3d  = require("rg_3d")
 
 local palette    = gdt.ROM.User.SpriteSheets["stripes.png"]
 local miptexture = gdt.ROM.User.SpriteSheets["mipmap64.png"]
-local shading    = gdt.ROM.User.SpriteSheets["shading.png"]
-local shading_grid = gdt.ROM.User.SpriteSheets["shading_grid.png"]
+local shading    = gdt.ROM.User.SpriteSheets["shading_cross.png"]
 local steve      = gdt.ROM.User.SpriteSheets["steve_beetle.png"]
 
 gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
@@ -101,12 +100,15 @@ local function raster_quad(_p1,_p2,_p3,_p4)
 end
 
 local function quad_shading(_p1,_p2,_p3,_p4,_color,_val1,_val2,_val3,_val4)
+	
 	local alpha = math.min(_val1,_val2,_val3,_val4)
 	--local alpha = ((_val1+_val2+_val3+_val4) / 4)
 	raster_rect(
 		_p1,_p2,_p3,_p4,
 		ColorRGBA(_color.R,_color.G,_color.B, 255 * alpha)
 	)
+
+	--alpha = 0
 
 	gdt.VideoChip0:RasterCustomSprite(
 		_p1,_p2,_p3,_p4,
@@ -141,49 +143,31 @@ local function quad_shading(_p1,_p2,_p3,_p4,_color,_val1,_val2,_val3,_val4)
 	)
 end
 
-local function create_shader_scrolling_quad(_texture)
+local function create_shader_scrolling_quad(_texture, _width, _height, _scroll_x, _scroll_y)
 	return function(_p1,_p2,_p3,_p4,_view_normal,_shader_input)		
 		local t = (gdt.CPU0.Time * 16) % 32
 		gdt.VideoChip0:RasterCustomSprite(
 			_p1,_p2,_p3,_p4,
 			_texture,
-			vec2(0,t),vec2(64,32),
+			vec2(t*_scroll_x,t*_scroll_y),vec2(_width, _height),
 			color.white,
 			color.clear
 		)
 		
 		local light_dir = vec3(math.cos(gdt.CPU0.Time), 0, math.sin(gdt.CPU0.Time))
-		local d1 = rmath:vec3_dot(_shader_input.normals[1], rmath:vec3_normalize(light_dir))
-		local d2 = rmath:vec3_dot(_shader_input.normals[2], rmath:vec3_normalize(light_dir))
-		local d3 = rmath:vec3_dot(_shader_input.normals[3], rmath:vec3_normalize(light_dir))
-		local d4 = rmath:vec3_dot(_shader_input.normals[4], rmath:vec3_normalize(light_dir))
+		light_dir = rmath:vec3_normalize(light_dir)
 
-		_view_normal = rmath:vec3_normalize(_view_normal)
-		local c = 1 - _view_normal.Z
-		quad_shading(_p2,_p3,_p4,_p1,color.black,d1,d2,d3,d4) -- TODO: fix order
-	end
-end
+		local n1 = (_shader_input and _shader_input.normals) and _shader_input.normals[1] or -light_dir
+		local n2 = (_shader_input and _shader_input.normals) and _shader_input.normals[2] or -light_dir
+		local n3 = (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -light_dir
+		local n4 = (_shader_input and _shader_input.normals) and _shader_input.normals[4] or -light_dir
 
-
-local function create_shader_smooth_quad(_texture)
-	return function(_p1,_p2,_p3,_p4,_view_normal,_shader_input)		
-		local c = rmath:vec3_normalize(_view_normal).Z
+		local d1 = rmath:vec3_dot(n2, light_dir) * 0.5 + 0.5
+		local d2 = rmath:vec3_dot(n1, light_dir) * 0.5 + 0.5
+		local d3 = rmath:vec3_dot(n4, light_dir) * 0.5 + 0.5
+		local d4 = rmath:vec3_dot(n3, light_dir) * 0.5 + 0.5
 		
-		gdt.VideoChip0:RasterCustomSprite(
-			_p1,_p2,_p3,_p4,
-			_texture,
-			vec2(0,0),vec2(64,64),
-			Color(255,255,255),
-			color.clear
-		)
-		
-		-- shading
-		--local depth = 10
-		--local c1,c2,c3,c4 = _p2.Z/depth, _p1.Z/depth, _p4.Z/depth, _p3.Z/depth
-		--quad_shading(_p2,_p1,_p4,_p3,color.red,c1,c2,c3,c4) -- TODO: fix order
-
-		--quad_shading(_p2,_p3,_p4,_p1,color.white,f1,f2,f3,f4) -- TODO: fix order
-		--quad_shading(_p2,_p3,_p4,_p1,color.black,0.5,0.5,0.5,0.5) -- TODO: fix order
+		quad_shading(_p2,_p1,_p4,_p3,color.black,d1,d2,d3,d4) -- TODO: fix order
 	end
 end
 
@@ -229,8 +213,8 @@ local function vec3_mult(_lhs,_rhs)
 	)
 end
 
-local palette_quad_shader = create_shader_scrolling_quad(palette)
-local smooth_quad_shader  = create_shader_smooth_quad(steve)
+local palette_quad_shader = create_shader_scrolling_quad(palette,64,32,0,1)
+local smooth_quad_shader  = create_shader_scrolling_quad(steve,64,64,0,0)
 
 local rmesh = require "rg_mesh"
 local torus_drawlist = rmesh:parse_obj("torus.obj")

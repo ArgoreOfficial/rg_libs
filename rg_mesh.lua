@@ -10,8 +10,8 @@ function lib:parse_obj(_path)
 		local face = {verts={},normals={}}
 
 		for f = 1, #asset.f[i] do		
-			local vn_index = asset.f[i][f].vn
 			local v_index  = asset.f[i][f].v
+			local vn_index = asset.f[i][f].vn
 			
 			local vert   = asset.v[v_index]
 			local normal = asset.vn[vn_index]

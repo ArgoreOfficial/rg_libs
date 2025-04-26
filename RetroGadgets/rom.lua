@@ -8,6 +8,7 @@ function rom_spritesheet_meta:__index(_k)
     if not ret then
         return nil
     end
+    img:setFilter("linear", "nearest")
     return _spritesheet("Import/" .. _k, img, img:getWidth(), img:getHeight() )
 end
 
