@@ -131,7 +131,7 @@ function vec4_meta.__mul(_vec,_scalar)
         _vec.X * _scalar, 
         _vec.Y * _scalar, 
         _vec.Z * _scalar, 
-        _vec.W * _scalar
+        (_vec.W or 0 ) * _scalar
     )
 end
 
@@ -140,7 +140,7 @@ function vec4_meta.__div(_vec,_scalar)
         _vec.X / _scalar, 
         _vec.Y / _scalar, 
         _vec.Z / _scalar, 
-        _vec.W / _scalar
+        (_vec.W or 0) / _scalar
     )
 end
 
@@ -149,7 +149,7 @@ function vec4_meta.__add(_lhs,_rhs)
         _lhs.X + _rhs.X, 
         _lhs.Y + _rhs.Y, 
         _lhs.Z + _rhs.Z, 
-        _lhs.W + _rhs.W
+        (_lhs.W or 0) + (_rhs.W or 0)
     )
 end
 
@@ -158,7 +158,7 @@ function vec4_meta.__sub(_lhs,_rhs)
         _lhs.X - _rhs.X, 
         _lhs.Y - _rhs.Y, 
         _lhs.Z - _rhs.Z, 
-        _lhs.W - _rhs.W
+        (_lhs.W or 0) - (_rhs.W or 0)
     )
 end
 
@@ -167,7 +167,7 @@ function vec4_meta.__unm(_vec)
         -_vec.X, 
         -_vec.Y, 
         -_vec.Z, 
-        -_vec.W
+        -(_vec.W or 0)
     )
 end
 
@@ -176,14 +176,14 @@ function vec4_meta.__eq(_lhs,_rhs)
         _lhs.X == _rhs.X and
         _lhs.Y == _rhs.Y and
         _lhs.Z == _rhs.Z and
-        _lhs.W == _rhs.W
+        (_lhs.W or 0) == (_rhs.W or 0)
 end
 
 function lib:vec4_normalize( _vec )
     local len = math.pow(_vec.X, 2) + 
                 math.pow(_vec.Y, 2) + 
                 math.pow(_vec.Z, 2) + 
-                math.pow(_vec.W, 2)
+                math.pow(_vec.W or 0, 2)
     if len == 0 then
         return lib:vec4(0,0,0,0)
     end

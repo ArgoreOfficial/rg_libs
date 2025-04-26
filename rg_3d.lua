@@ -16,6 +16,8 @@ local g_use_perspective = true
 local g_near = 0.5
 local g_far = 50
 
+local g_eye     = vec3(0,0,0)
+local g_eye_dir = vec3(0,0,1)
 local g_view_mat = {}
 local g_debug_texture = gdt.ROM.User.SpriteSheets["debug.png"]
 
@@ -25,7 +27,7 @@ local g_raster_quad_func = nil
 local g_clip_far = true
 
 local g_current_renderpass = nil
-local g_renderpasses = {}
+local g_draw_id = 0
 
 --------------------------------------------------------
 --[[  Default Raster Functions                        ]]
@@ -62,6 +64,7 @@ function lib:begin_render()
 	end
 
 	g_current_renderpass = {}
+	g_draw_id = 0
 end
 
 function lib:end_render()
@@ -105,6 +108,8 @@ end
 --------------------------------------------------------
 
 function lib:push_look_at(_eye, _center, _up)
+	g_eye_dir  = rmath:vec3_normalize( _center - _eye )
+	g_eye = _eye
 	g_view_mat = rmath:mat4_look_at(_eye, _center, _up)
 end
 
@@ -363,7 +368,8 @@ local function clip_and_raster_triangle(
 	_left_clip_count,   -- optional: use these if you've precomputed 
 	_right_clip_count,  -- which points are inside the view frustum
 	_top_clip_count,    -- 
-	_bottom_clip_count  -- 
+	_bottom_clip_count, -- 
+	_shader_input       -- 
 )
 	local p1 = _tri[1]
 	local p2 = _tri[2]
@@ -394,16 +400,21 @@ local function clip_and_raster_triangle(
 			if not g_current_renderpass then
 				error("No renderpass")
 			end
-
+			
+			--local depth = (draw_list[i][1].Z + draw_list[i][2].Z + draw_list[i][3].Z) / 3
+			local depth = math.min(draw_list[i][1].Z,draw_list[i][2].Z,draw_list[i][3].Z)
+		
+			_shader_input.draw_id = g_draw_id + 1
+			g_draw_id = g_draw_id + 1
 			_push_cmd_draw(
 				g_raster_tri_func, 
-				(draw_list[i][1].Z + draw_list[i][2].Z + draw_list[i][3].Z) / 3, 
+				depth, 
 				rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
 				rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
 				rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z),
-				0,
-				{}
+				_shader_input
 			)
+		
 		end
 	end
 end
@@ -434,34 +445,42 @@ local function clip_and_raster_quad(
 	if bottom_clip == 0 then return end
 	
 	if g_raster_quad_func and left_clip == 4 and right_clip == 4 and top_clip == 4 and bottom_clip == 4 then
+		_shader_input.draw_id = g_draw_id + 1
+		g_draw_id = g_draw_id + 1
+		--local depth = (p1.Z + p2.Z + p3.Z + p4.Z)/2
+		local depth = math.min(p1.Z, p2.Z, p3.Z, p4.Z)
 		
-		local U = p2 - p1
-		local V = p4 - p1
-		local view_normal = rmath:vec3_cross(U, V)
-		
-		if view_normal.Z < 0 then return end
-
 		_push_cmd_draw(
 			g_raster_quad_func, 
-			(p1.Z + p2.Z + p3.Z + p4.Z)/2, 
+			depth, 
 			rmath:vec3_to_screen(p1, _render_width, _render_height, p1.Z),
 			rmath:vec3_to_screen(p2, _render_width, _render_height, p2.Z),
 			rmath:vec3_to_screen(p3, _render_width, _render_height, p3.Z),
 			rmath:vec3_to_screen(p4, _render_width, _render_height, p4.Z),
-			view_normal,
 			_shader_input
 		)
 	else
-		clip_and_raster_triangle({p1,p2,p3}, _render_width, _render_height )
-		clip_and_raster_triangle({p1,p3,p4}, _render_width, _render_height )
+		clip_and_raster_triangle({p1,p2,p3}, _render_width, _render_height, nil, nil, nil, nil, _shader_input )
+		clip_and_raster_triangle({p1,p4,p3}, _render_width, _render_height, nil, nil, nil, nil, _shader_input )
 	end
 end
 
-function lib:raster_triangle(_tri, _render_width, _render_height)
+local function get_view_normal(_p1,_p2,_p3)
+	local U = _p2 - _p1
+	local V = _p3 - _p1
+	local rel = _p1 - g_eye
+	local view_normal = rmath:vec3_normalize(rmath:vec3_cross(U, V))
+	view_normal = vec3(view_normal.X * (rel.X), view_normal.Y * (rel.Y), view_normal.Z * (rel.Z))
+
+	return view_normal
+end
+
+function lib:raster_triangle(_tri, _render_width, _render_height, _shader_input)
 	local p1 = lib:to_view(_tri[1])
 	local p2 = lib:to_view(_tri[2])
 	local p3 = lib:to_view(_tri[3])
 	local triangle = {p1,p2,p3}
+	_shader_input = _shader_input or {}
 
 	local near_count = count_under_value(-g_near, p1.Z, p2.Z, p3.Z)
 	if near_count == 0 then return end -- behind near plane
@@ -471,6 +490,11 @@ function lib:raster_triangle(_tri, _render_width, _render_height)
 	
 	local nearclipped = {}
 	local farclipped  = {}
+
+	local view_normal = get_view_normal(_tri[1],_tri[2],_tri[3])
+	if (view_normal.X + view_normal.Y + view_normal.Z) > 0 then
+		return
+	end
 
 	-- clip near plane
 	if near_count == 1 or near_count == 2 then 
@@ -489,10 +513,14 @@ function lib:raster_triangle(_tri, _render_width, _render_height)
 
 	for i = 1, #farclipped do
 		local t = {}
+	
 		t[1] = lib:view_to_clip(farclipped[i][1])
 		t[2] = lib:view_to_clip(farclipped[i][2])
 		t[3] = lib:view_to_clip(farclipped[i][3])
-		clip_and_raster_triangle(t, _render_width, _render_height)
+
+		_shader_input.view_normal = view_normal	
+
+		clip_and_raster_triangle(t, _render_width, _render_height, nil, nil, nil, nil, _shader_input)
 	end
 end
 
@@ -501,7 +529,8 @@ function lib:raster_quad(_quad, _render_width, _render_height, _shader_input)
 	local p2 = lib:to_view(_quad[2])
 	local p3 = lib:to_view(_quad[3])
 	local p4 = lib:to_view(_quad[4])
-	
+	_shader_input = _shader_input or {}
+
 	local near_count = count_under_value(-g_near, p1.Z, p2.Z, p3.Z, p4.Z)
 	if near_count == 0 then return end -- behind near plane
 	
@@ -514,12 +543,19 @@ function lib:raster_quad(_quad, _render_width, _render_height, _shader_input)
 		local t3 = lib:view_to_clip(p3)
 		local t4 = lib:view_to_clip(p4)
 		
+		local view_normal = get_view_normal(_quad[1],_quad[2],_quad[4])
+		if (view_normal.X + view_normal.Y + view_normal.Z) > 0 then
+			return
+		end
+	
+		_shader_input.view_normal = view_normal
+
 		clip_and_raster_quad({t1,t2,t3,t4}, _render_width, _render_height, nil, nil, nil, nil, _shader_input)
 	else
 		if far_count ~= 4 and not g_clip_far then return end 
 		
-		lib:raster_triangle({_quad[1],_quad[2],_quad[3]},_render_width,_render_height)
-		lib:raster_triangle({_quad[1],_quad[3],_quad[4]},_render_width,_render_height)
+		lib:raster_triangle({_quad[1],_quad[2],_quad[3]}, _render_width, _render_height, _shader_input)
+		lib:raster_triangle({_quad[1],_quad[3],_quad[4]}, _render_width, _render_height, _shader_input)
 	end
 end
 

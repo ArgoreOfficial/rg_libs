@@ -90,13 +90,13 @@ local function get_move_wish()
 	return rmath:vec3_normalize(move_wish)
 end
 
-local function raster_rect(p1,p2,p3,p4,color)
+local function FillQuad(p1,p2,p3,p4,color)
 	gdt.VideoChip0:FillTriangle(p1,p2,p3,color)
 	gdt.VideoChip0:FillTriangle(p1,p3,p4,color)
 end
 
 local function raster_quad(_p1,_p2,_p3,_p4)
-	raster_rect(_p1,_p2,_p3,_p4,color.blue)
+	FillQuad(_p1,_p2,_p3,_p4,color.blue)
 end
 
 local function quad_shading(_p1,_p2,_p3,_p4,_color,_val1,_val2,_val3,_val4)
@@ -144,8 +144,20 @@ local function quad_shading(_p1,_p2,_p3,_p4,_color,_val1,_val2,_val3,_val4)
 	)
 end
 
+local function create_shader_quad_flat(_color)
+	return function(_p1,_p2,_p3,_p4,_shader_input)		
+		FillQuad(_p1,_p2,_p3,_p4,_color)
+	end
+end
+
+local function create_shader_tri_flat(_color)
+	return function(_p1,_p2,_p3,_shader_input)		
+		gdt.VideoChip0:DrawTriangle(_p1,_p2,_p3,_color)
+	end
+end
+
 local function create_shader_scrolling_quad(_texture, _width, _height, _scroll_x, _scroll_y)
-	return function(_p1,_p2,_p3,_p4,_view_normal,_shader_input)		
+	return function(_p1,_p2,_p3,_p4,_shader_input)		
 		local t = (gdt.CPU0.Time * 16) % 32
 		local light_dir = vec3(math.cos(gdt.CPU0.Time), 0, math.sin(gdt.CPU0.Time))
 		light_dir = rmath:vec3_normalize(light_dir)
@@ -155,28 +167,66 @@ local function create_shader_scrolling_quad(_texture, _width, _height, _scroll_x
 		local n3 = (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -light_dir
 		local n4 = (_shader_input and _shader_input.normals) and _shader_input.normals[4] or -light_dir
 		
-		local d1 = rmath:vec3_dot(n2, light_dir) * 0.5 + 0.5
-		local d2 = rmath:vec3_dot(n1, light_dir) * 0.5 + 0.5
-		local d3 = rmath:vec3_dot(n4, light_dir) * 0.5 + 0.5
-		local d4 = rmath:vec3_dot(n3, light_dir) * 0.5 + 0.5
+		local d1 = rmath:vec3_dot(n1, light_dir) * 0.5 + 0.5
+		local d2 = rmath:vec3_dot(n2, light_dir) * 0.5 + 0.5
+		local d3 = rmath:vec3_dot(n3, light_dir) * 0.5 + 0.5
+		local d4 = rmath:vec3_dot(n4, light_dir) * 0.5 + 0.5
 		
 		local c = math.min(d1,d2,d3,d4)*255
-		--local c = (d1+d2+d3+d4)/4*255
-		--local c = 255
 
-		gdt.VideoChip0:RasterCustomSprite(
-			_p1,_p2,_p3,_p4,
-			_texture,
-			vec2(t*_scroll_x,t*_scroll_y),vec2(_width, _height),
-			Color(c,c,c),
-			color.clear
-		)
+		if _texture then
+			gdt.VideoChip0:RasterCustomSprite(
+				_p1,_p2,_p3,_p4,
+				_texture,
+				vec2(t*_scroll_x,t*_scroll_y),vec2(_width, _height),
+				Color(c,c,c),
+				color.clear
+			)
+		else
+			FillQuad(_p1,_p2,_p3,_p4,Color(c,c,c))
+		end
 		
-		quad_shading(_p2,_p1,_p4,_p3,color.black,d1,d2,d3,d4) -- TODO: fix order
+		quad_shading(_p3,_p4,_p1,_p2,color.black,d1,d2,d3,d4)
 	end
 end
 
-local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4,_view_normal,_shader_input)
+
+local function orientation(_p1,_p2,_p3)
+	-- orientation of an (x, y) triplet
+    local val = ((_p2.Y - _p1.Y) * (_p3.Z - _p2.X)) -
+                ((_p2.X - _p1.Z) * (_p3.Y - _p2.Y)) ;
+
+    if val == 0 then
+        return 0
+    elseif val > 0 then
+        return 1
+    else
+        return -1
+	end
+end
+
+local function create_shader_triangle(_color)
+	return function(_p1,_p2,_p3,_shader_input)		
+		local t = (gdt.CPU0.Time * 16) % 32
+		local light_dir = vec3(math.cos(gdt.CPU0.Time), 0, math.sin(gdt.CPU0.Time))
+		light_dir = rmath:vec3_normalize(light_dir)
+		
+		local n1 = (_shader_input and _shader_input.normals) and _shader_input.normals[1] or -light_dir
+		local n2 = (_shader_input and _shader_input.normals) and _shader_input.normals[2] or -light_dir
+		local n3 = (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -light_dir
+		
+		local d1 = rmath:vec3_dot(n1, light_dir) * 0.5 + 0.5
+		local d2 = rmath:vec3_dot(n2, light_dir) * 0.5 + 0.5
+		local d3 = rmath:vec3_dot(n3, light_dir) * 0.5 + 0.5
+		
+		local c = math.min(d1,d2,d3)
+
+		gdt.VideoChip0:FillTriangle(_p1,_p2,_p3,Color(_color.R*c,_color.G*c,_color.B*c))
+		--quad_shading(_p3,_p4,_p1,_p2,color.black,d1,d2,d3,d4)
+	end
+end
+
+local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4,_shader_input)
 	local u, v, fraction = rg3d:get_mip_UVs(_p1, _p2, _p3, _p4, 64, 64)
 	local mip = rg3d:get_mip_level(_p1, _p2, _p3, _p4, 64, 64)
 
@@ -206,12 +256,134 @@ end
 
 local palette_quad_shader = create_shader_scrolling_quad(palette,64,32,0,1)
 local smooth_quad_shader  = create_shader_scrolling_quad(steve,64,64,0,0)
+local chamber_quad_shader = create_shader_scrolling_quad(nil,64,64,0,0)
+local chamber_tri_shader = create_shader_triangle(color.white)
 
---local rmesh = require "rg_mesh"
+local function shader_quad_random(_p1,_p2,_p3,_p4,_shader_input)		
+	math.randomseed( _shader_input.primitive_index )
+	local color = Color(math.random(0,255),math.random(0,255),math.random(0,255))
+	FillQuad(_p1, _p2, _p3, _p4, color)
+end
+
+local function shader_tri_random(_p1,_p2,_p3,_shader_input)		
+	math.randomseed( _shader_input.primitive_index )
+	local color = Color(math.random(0,255),math.random(0,255),math.random(0,255))
+	gdt.VideoChip0:FillTriangle(_p1,_p2,_p3,color)
+end
+
+local quad_shaders = {
+	flat_black = create_shader_quad_flat(color.black),
+	flat_white = create_shader_quad_flat(color.white),
+	flat_random = shader_quad_random
+}
+
+local tri_shaders = {
+	flat_black  = create_shader_tri_flat(color.black),
+	flat_white  = create_shader_tri_flat(color.white),
+	flat_random = shader_tri_random
+}
+
+local rmesh = require "rg_mesh"
 --local torus_drawlist = rmesh:parse_obj("torus.obj")
 --rmesh:export_mesh( torus_drawlist )
 
 local torus_drawlist = require "torus_obj" -- rmesh:parse_obj("torus.obj")
+local chamber_drawlist = rmesh:parse_obj("chamber.obj")
+
+local function translate_tri(_quad, _vec)
+	return {
+		_quad[1] + _vec,
+		_quad[2] + _vec,
+		_quad[3] + _vec
+	}
+end
+
+local function scale_tri(_quad, _vec)
+	return {
+		vec3_mult(_quad[1], _vec),
+		vec3_mult(_quad[2], _vec),
+		vec3_mult(_quad[3], _vec)
+	}
+end
+
+local function translate_quad(_quad, _vec)
+	return {
+		_quad[1] + _vec,
+		_quad[2] + _vec,
+		_quad[3] + _vec,
+		_quad[4] + _vec
+	}
+end
+
+local function scale_quad(_quad, _vec)
+	return {
+		vec3_mult(_quad[1], _vec),
+		vec3_mult(_quad[2], _vec),
+		vec3_mult(_quad[3], _vec),
+		vec3_mult(_quad[4], _vec)
+	}
+end
+
+local function draw_mesh(_drawlist,_scale,_translation)
+	for i = 1, #_drawlist do
+		if #_drawlist[i].verts == 3 then
+			local ws = scale_tri(_drawlist[i].verts, _scale)
+			ws = translate_tri(ws, _translation)
+			
+			rg3d:raster_triangle(
+				ws, 
+				screen_width, screen_height, 
+				{ 
+					normals = _drawlist[i].normals,
+					primitive_index = i
+				}
+			)
+		else
+			local ws = scale_quad(_drawlist[i].verts, _scale)
+			ws = translate_quad(ws, _translation)
+			
+			rg3d:raster_quad(
+				ws, 
+				screen_width, screen_height, 
+				{ 
+					normals = _drawlist[i].normals,
+					primitive_index = i
+				}
+			)
+		end
+
+	end
+	
+end
+
+local function hex2rgb(hex)
+    hex = hex:gsub("#","")
+    return tonumber("0x"..hex:sub(1,2)), tonumber("0x"..hex:sub(3,4)), tonumber("0x"..hex:sub(5,6))
+end
+
+local function load_logo_mesh(_color)
+	local color = Color(hex2rgb(_color))
+	local name = "logo_mesh/logo_" .. _color .. ".obj"
+	return {
+		mesh = rmesh:parse_obj(name), 
+		q_func = create_shader_quad_flat(color),
+		t_func = create_shader_tri_flat(color),
+		draw = function(self,_scale,_translation)
+			rg3d:set_quad_func(self.q_func)
+			rg3d:set_tri_func(self.t_func)
+			draw_mesh(self.mesh, _scale, _translation)
+		end
+	}
+end
+
+local logo_000000 = load_logo_mesh("000000")
+local logo_FBF236 = load_logo_mesh("FBF236")
+local logo_9BADB7 = load_logo_mesh("9BADB7")
+local logo_323C39 = load_logo_mesh("323C39")
+local logo_524B24 = load_logo_mesh("524B24")
+local logo_696A6A = load_logo_mesh("696A6A")
+local logo_847E87 = load_logo_mesh("847E87")
+local logo_C6B533 = load_logo_mesh("C6B533")
 
 -- update function is repeated every time tick
 function update()
@@ -225,48 +397,41 @@ function update()
 	-- draw
 
 	gdt.VideoChip0:RenderOnBuffer(1)
-	gdt.VideoChip0:Clear(color.black)
+	gdt.VideoChip0:Clear(color.gray)
 	
 	rg3d:push_look_at(cam_pos, cam_pos + cam_dir, vec3(0,1,0))
 	rg3d:begin_render() -- begin renderpass
-	rg3d:set_clip_far( true )
-	rg3d:set_tri_func(nil) -- set to custom
-	rg3d:set_quad_func(palette_quad_shader) -- set to custom
+		rg3d:set_clip_far( true )
+		rg3d:set_tri_func(chamber_tri_shader)
+		rg3d:set_quad_func(palette_quad_shader) -- set to custom
+		--rg3d:set_quad_func(chamber_quad_shader) -- set to custom
+		
+		local scale_x = 0--rmath.nsin(gdt.CPU0.Time * 4)
+		local scale_z = 0--rmath.ncos(gdt.CPU0.Time * 4)
+
+		draw_mesh(torus_drawlist, vec3( 1.3+scale_x, 1.3+scale_z, 1.3+scale_x ), vec3(-3,2,0))
+	--rg3d:end_render()
 	
-	local function translate_quad(_quad, _vec)
-		return {
-			_quad[1] + _vec,
-			_quad[2] + _vec,
-			_quad[3] + _vec,
-			_quad[4] + _vec
-		}
+	do -- Render Logo
+		local pos = vec3(0,0,5)
+		local size = vec3(10,10,10)
+
+		--rg3d:begin_render()
+		
+		logo_000000:draw(size, pos)
+		logo_FBF236:draw(size, pos)
+		logo_9BADB7:draw(size, pos)
+		logo_323C39:draw(size, pos)
+		logo_524B24:draw(size, pos)
+		logo_696A6A:draw(size, pos)
+		logo_847E87:draw(size, pos)
+		logo_C6B533:draw(size, pos)
+
+		rg3d:end_render()
+		
 	end
 
-	local function scale_quad(_quad, _vec)
-		return {
-			vec3_mult(_quad[1], _vec),
-			vec3_mult(_quad[2], _vec),
-			vec3_mult(_quad[3], _vec),
-			vec3_mult(_quad[4], _vec)
-		}
-	end
 
-	local scale_x = 0--rmath.nsin(gdt.CPU0.Time * 4)
-	local scale_z = 0--rmath.ncos(gdt.CPU0.Time * 4)
-
-	for i = 1, #torus_drawlist do
-		local ws = scale_quad(torus_drawlist[i].verts, vec3( 1.3+scale_x, 1.3+scale_z, 1.3+scale_x ) )
-		ws = translate_quad(ws, vec3(-3,2,0))
-		local shader_input = {
-			normals = torus_drawlist[i].normals
-		}
-		rg3d:raster_quad(ws, screen_width, screen_height, shader_input)
-	end
-	
-	rg3d:set_quad_func(smooth_quad_shader)
-	rg3d:raster_quad(translate_quad(scale_quad(quad_vbo, vec3(2,0,2)), vec3(4,1,0)),screen_width,screen_height)
-	rg3d:end_render()
-	
 	gdt.VideoChip0:RenderOnScreen()
 	gdt.VideoChip0:Clear(color.black)
 
