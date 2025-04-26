@@ -43,17 +43,26 @@ function lib:export_mesh(_mesh)
 	local file_str = "return {\n"
 
 	for i = 1, #_mesh do
-		local face_str = "  { "
-		for f = 1, #_mesh[i].face do
+		local face_str = "  { verts={"
+		for f = 1, #_mesh[i].verts do
 			-- string
-			face_str = face_str .. "vec3(" .. vec3_str(_mesh[i][f]) .. ")"
-			if f ~= #_mesh[i] then
+			face_str = face_str .. "vec3(" .. vec3_str(_mesh[i].verts[f]) .. ")"
+			if f ~= #_mesh[i].verts then
+				face_str = face_str .. ", "
+			end
+		end
+
+		face_str = face_str .. "}, normals={"
+		for f = 1, #_mesh[i].normals do
+			-- string
+			face_str = face_str .. "vec3(" .. vec3_str(_mesh[i].normals[f]) .. ")"
+			if f ~= #_mesh[i].normals then
 				face_str = face_str .. ", "
 			end
 		end
 		
 		-- string
-		face_str = face_str .. " }"
+		face_str = face_str .. " }}"
 		if i ~= #_mesh then
 			face_str = face_str .. ", "
 		end

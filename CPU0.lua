@@ -103,10 +103,11 @@ local function quad_shading(_p1,_p2,_p3,_p4,_color,_val1,_val2,_val3,_val4)
 	
 	local alpha = math.min(_val1,_val2,_val3,_val4)
 	--local alpha = ((_val1+_val2+_val3+_val4) / 4)
-	raster_rect(
-		_p1,_p2,_p3,_p4,
-		ColorRGBA(_color.R,_color.G,_color.B, 255 * alpha)
-	)
+	
+	--raster_rect(
+	--	_p1,_p2,_p3,_p4,
+	--	ColorRGBA(_color.R,_color.G,_color.B, 255 * alpha)
+	--)
 
 	--alpha = 0
 
@@ -146,43 +147,33 @@ end
 local function create_shader_scrolling_quad(_texture, _width, _height, _scroll_x, _scroll_y)
 	return function(_p1,_p2,_p3,_p4,_view_normal,_shader_input)		
 		local t = (gdt.CPU0.Time * 16) % 32
-		gdt.VideoChip0:RasterCustomSprite(
-			_p1,_p2,_p3,_p4,
-			_texture,
-			vec2(t*_scroll_x,t*_scroll_y),vec2(_width, _height),
-			color.white,
-			color.clear
-		)
-		
 		local light_dir = vec3(math.cos(gdt.CPU0.Time), 0, math.sin(gdt.CPU0.Time))
 		light_dir = rmath:vec3_normalize(light_dir)
-
+		
 		local n1 = (_shader_input and _shader_input.normals) and _shader_input.normals[1] or -light_dir
 		local n2 = (_shader_input and _shader_input.normals) and _shader_input.normals[2] or -light_dir
 		local n3 = (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -light_dir
 		local n4 = (_shader_input and _shader_input.normals) and _shader_input.normals[4] or -light_dir
-
+		
 		local d1 = rmath:vec3_dot(n2, light_dir) * 0.5 + 0.5
 		local d2 = rmath:vec3_dot(n1, light_dir) * 0.5 + 0.5
 		local d3 = rmath:vec3_dot(n4, light_dir) * 0.5 + 0.5
 		local d4 = rmath:vec3_dot(n3, light_dir) * 0.5 + 0.5
 		
+		local c = math.min(d1,d2,d3,d4)*255
+		--local c = (d1+d2+d3+d4)/4*255
+		--local c = 255
+
+		gdt.VideoChip0:RasterCustomSprite(
+			_p1,_p2,_p3,_p4,
+			_texture,
+			vec2(t*_scroll_x,t*_scroll_y),vec2(_width, _height),
+			Color(c,c,c),
+			color.clear
+		)
+		
 		quad_shading(_p2,_p1,_p4,_p3,color.black,d1,d2,d3,d4) -- TODO: fix order
 	end
-end
-
-local function raster_quad_sprite(_p1,_p2,_p3,_p4)
-	local z = math.max(_p1.Z, _p2.Z, _p3.Z, _p4.Z)
-	local c = 1 - (z / 50) -- z / g_far
-	local col = ColorRGBA(255,255,255, 255 * c)
-
-	if col.A ~= 255 then
-		local fog_color = color.black
-		gdt.VideoChip0:FillTriangle( _p1, _p2, _p3, fog_color )
-		gdt.VideoChip0:FillTriangle( _p1, _p3, _p4, fog_color )
-	end
-	
-	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4,miptexture,vec2(0,0),vec2(64,64),col,color.red)
 end
 
 local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4,_view_normal,_shader_input)
@@ -216,53 +207,28 @@ end
 local palette_quad_shader = create_shader_scrolling_quad(palette,64,32,0,1)
 local smooth_quad_shader  = create_shader_scrolling_quad(steve,64,64,0,0)
 
-local rmesh = require "rg_mesh"
-local torus_drawlist = rmesh:parse_obj("torus.obj")
-
---local torus_drawlist = require "torus_obj" -- rmesh:parse_obj("torus.obj")
+--local rmesh = require "rg_mesh"
+--local torus_drawlist = rmesh:parse_obj("torus.obj")
 --rmesh:export_mesh( torus_drawlist )
+
+local torus_drawlist = require "torus_obj" -- rmesh:parse_obj("torus.obj")
 
 -- update function is repeated every time tick
 function update()
-	gdt.VideoChip0:RenderOnBuffer(1)
-	gdt.VideoChip0:Clear(color.black)
-	rg3d:set_quad_func(nil) -- reset
-	rg3d:set_tri_func(nil)
-
 	local dt = gdt.CPU0.DeltaTime
-
+	
 	update_dir(dt * 1.2)
 	local speed = 5
 	if rinput["LeftShift"] then speed = speed * 4 end
 	cam_pos = cam_pos + get_move_wish() * dt * speed
 	
-	rg3d:push_look_at(
-		cam_pos, 
-		cam_pos + cam_dir,
-		vec3(0,1,0))
-	
-	-- draw faces
-	local p1, p2, p3, p4
+	-- draw
 
-	rg3d:set_quad_func(raster_quad_sprite_mipped) -- set to custom
+	gdt.VideoChip0:RenderOnBuffer(1)
+	gdt.VideoChip0:Clear(color.black)
 	
-	local hcount = draw_count/2
-
-	rg3d:set_clip_far( false ) -- disable far clipping for floor
-	
+	rg3d:push_look_at(cam_pos, cam_pos + cam_dir, vec3(0,1,0))
 	rg3d:begin_render() -- begin renderpass
-	for y=-hcount,hcount do
-		for x=-hcount,hcount do
-			for tri = 1, #quad_vbo, 4 do
-				p1 = quad_vbo[tri    ] + rmath:vec4(-x,0,y,0)
-				p2 = quad_vbo[tri + 1] + rmath:vec4(-x,0,y,0)
-				p3 = quad_vbo[tri + 2] + rmath:vec4(-x,0,y,0)
-				p4 = quad_vbo[tri + 3] + rmath:vec4(-x,0,y,0)
-				rg3d:raster_quad({p1,p2,p3,p4}, screen_width, screen_height, {})
-			end
-		end
-	end
-
 	rg3d:set_clip_far( true )
 	rg3d:set_tri_func(nil) -- set to custom
 	rg3d:set_quad_func(palette_quad_shader) -- set to custom
