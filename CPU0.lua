@@ -430,6 +430,8 @@ local logo_meshes = {
 function update()
 	local dt = gdt.CPU0.DeltaTime
 	
+	print("FPS: ", 1/dt)
+
 	update_dir(dt * 1.2)
 	local speed = 5
 	if rinput["LeftShift"] then speed = speed * 4 end

@@ -84,7 +84,7 @@ function lib:end_render()
 		num_drawcalls = num_drawcalls + 1
 	end
 	
-	print("Drawcalls:", num_drawcalls)
+	-- print("Drawcalls:", num_drawcalls)
 
 	g_current_renderpass = nil
 end
