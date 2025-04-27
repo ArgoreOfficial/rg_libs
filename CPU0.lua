@@ -6,8 +6,9 @@ local rg3d  = require("rg_3d")
 local rmesh = nil
 if not IS_RG then rmesh = require "rg_mesh" end
 
-local palette    = gdt.ROM.User.SpriteSheets["stripes.png"]
-local shading    = gdt.ROM.User.SpriteSheets["shading_cross.png"]
+local palette = gdt.ROM.User.SpriteSheets["stripes.png"]
+local shading = gdt.ROM.User.SpriteSheets["shading_cross.png"]
+local rg_tex  = gdt.ROM.User.SpriteSheets["rg_logo.png"]
 
 gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
 -- this has to be grabbed after because of love2d stuff
@@ -273,8 +274,6 @@ local function vec3_mult(_lhs,_rhs)
 end
 
 local palette_quad_shader = create_shader_scrolling_quad(palette,64,32,0,1)
-local smooth_quad_shader  = create_shader_scrolling_quad(steve,64,64,0,0)
-local chamber_quad_shader = create_shader_scrolling_quad(nil,64,64,0,0)
 local chamber_tri_shader  = create_shader_flat_shaded_tri(color.white)
 
 local function shader_quad_random(_p1,_p2,_p3,_p4,_shader_input)		
@@ -364,39 +363,68 @@ local function hex2rgb(hex)
 	return tonumber("0x"..hex:sub(1,2)), tonumber("0x"..hex:sub(3,4)), tonumber("0x"..hex:sub(5,6))
 end
 
-local function load_logo_mesh(_color)
-	local color = Color(hex2rgb(_color))
-	local name = "logo_mesh/logo_" .. _color .. ".obj"
-	--local mesh = rmesh:parse_obj(name)
-	
-	local mesh_path = "logo_" .. _color
-	if IS_RG then mesh_path = mesh_path .. ".lua" end
-	local mesh = require(mesh_path)
+local LOAD_LUA_MESH = true
 
-	local model = {
+local function load_mesh(_name, _export)
+	if IS_RG or LOAD_LUA_MESH then 
+		if IS_RG then
+			return require(_name .. ".lua")
+		else
+			return require(_name)
+		end
+	elseif rmesh then
+		local mesh = rmesh:parse_obj(_name .. ".obj")
+		if mesh and _export or false then
+			rmesh:export_mesh( _name .. ".lua", mesh )
+		end
+		return mesh
+	end
+end
+
+local function load_logo_mesh(_color)
+	local col = Color(hex2rgb(_color))
+	local mesh = nil
+
+	if IS_RG or LOAD_LUA_MESH then 
+		mesh = load_mesh("logo_" .. _color)
+	elseif rmesh then
+		mesh = load_mesh("logo_mesh/logo_" .. _color,true)
+	end
+
+	return {
 		mesh = mesh, 
-		q_func = create_shader_flat_shaded_quad(color),
-		t_func = create_shader_flat_shaded_tri(color),
+		q_func = create_shader_flat_shaded_quad(col),
+		t_func = create_shader_flat_shaded_tri(col),
 		draw = function(self,_scale,_translation)
 			rg3d:set_quad_func(self.q_func)
 			rg3d:set_tri_func(self.t_func)
 			draw_mesh(self.mesh, _scale, _translation)
 		end
 	}
-
-	--rmesh:export_mesh( "logo_" .. _color .. ".lua", mesh )
-
-	return model
 end
 
-local logo_000000 = load_logo_mesh("000000")
-local logo_FBF236 = load_logo_mesh("FBF236")
-local logo_9BADB7 = load_logo_mesh("9BADB7")
-local logo_323C39 = load_logo_mesh("323C39")
-local logo_524B24 = load_logo_mesh("524B24")
-local logo_696A6A = load_logo_mesh("696A6A")
-local logo_847E87 = load_logo_mesh("847E87")
-local logo_C6B533 = load_logo_mesh("C6B533")
+local logo_meshes = {
+	load_logo_mesh("000000"), 
+	load_logo_mesh("9BADB7"), 
+	load_logo_mesh("255DA8"), 
+	load_logo_mesh("323C39"), 
+	load_logo_mesh("524B24"), 
+	load_logo_mesh("696A6A"), 
+	load_logo_mesh("847E87"), 
+	load_logo_mesh("00984D"), 
+	load_logo_mesh("35815C"), 
+	load_logo_mesh("476489"), 
+	load_logo_mesh("AB6560"), 
+	load_logo_mesh("AF805F"), 
+	load_logo_mesh("B4A64C"), 
+	load_logo_mesh("B5B5B5"), 
+	load_logo_mesh("C6B533"), 
+	load_logo_mesh("EE5F56"), 
+	load_logo_mesh("F69753"), 
+	load_logo_mesh("FBF236"), 
+	load_logo_mesh("FFE32D"), 
+	load_logo_mesh("FFFFFF")
+}
 
 -- update function is repeated every time tick
 function update()
@@ -425,16 +453,11 @@ function update()
 	
 		-- Render Logo
 		local pos = vec3(0,0,5)
-		local size = vec3(10,math.min(20, gdt.CPU0.Time * 5),10)
+		local size = vec3(10,math.min(10, gdt.CPU0.Time * 5),10)
 
-		logo_000000:draw(size, pos)
-		logo_FBF236:draw(size, pos)
-		logo_9BADB7:draw(size, pos)
-		logo_323C39:draw(size, pos)
-		logo_524B24:draw(size, pos)
-		logo_696A6A:draw(size, pos)
-		logo_847E87:draw(size, pos)
-		logo_C6B533:draw(size, pos)
+		for i = 1, #logo_meshes do
+			logo_meshes[i]:draw(size, pos)
+		end
 	rg3d:end_render()
 	
 
