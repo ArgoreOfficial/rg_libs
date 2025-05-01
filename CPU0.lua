@@ -3,8 +3,6 @@ local IS_RG = _VERSION == "Luau"
 
 local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
-local rmesh = nil
-if not IS_RG then rmesh = require "rg_mesh" end
 
 local palette = gdt.ROM.User.SpriteSheets["stripes.png"]
 local shading = gdt.ROM.User.SpriteSheets["shading_cross.png"]
@@ -358,12 +356,11 @@ local function drawlist_submit(_list)
 end
 
 local function require_drawlist(_name)
-	local mesh = require(_name)
+	local mesh = require(_name .. (IS_RG and ".lua" or ""))
 	return drawlist_build(mesh)
 end
 
-local logo_drawlist = require_drawlist "rg3d"
-local torus_drawlist = require_drawlist "torus"
+local logo_drawlist = require_drawlist "logo_mesh"
 
 local function shader_quad_basic(_p1,_p2,_p3,_p4,_shader_input)		
 	FillQuad(_p1, _p2, _p3, _p4, _shader_input.color or color.white)
@@ -395,10 +392,6 @@ function update()
 	rg3d:push_look_at(cam_pos, cam_pos + cam_dir, vec3(0,1,0))
 	rg3d:begin_render() -- begin renderpass
 		rg3d:set_clip_far( true )
-
-		rg3d:set_tri_func(chamber_tri_shader)
-		rg3d:set_quad_func(palette_quad_shader) -- set to custom
-		drawlist_submit(torus_drawlist)
 	
 		-- Render Logo
 		rg3d:set_quad_func(shader_quad_basic)
