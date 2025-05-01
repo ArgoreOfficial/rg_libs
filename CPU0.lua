@@ -288,10 +288,6 @@ local function shader_tri_random(_p1,_p2,_p3,_shader_input)
 	gdt.VideoChip0:FillTriangle(_p1,_p2,_p3,color)
 end
 
---local torus_drawlist = rmesh:parse_obj("torus.obj")
---rmesh:export_mesh( torus_drawlist )
-local torus_drawlist = require "torus_obj" -- rmesh:parse_obj("torus.obj")
-
 local function translate_tri(_quad, _vec)
 	return {
 		_quad[1] + _vec,
@@ -326,115 +322,14 @@ local function scale_quad(_quad, _vec)
 	}
 end
 
-local function draw_mesh(_drawlist,_scale,_translation)
-	for i = 1, #_drawlist do
-		if #_drawlist[i].verts == 3 then
-			local ws = scale_tri(_drawlist[i].verts, _scale)
-			ws = translate_tri(ws, _translation)
-			
-			rg3d:raster_triangle(
-				ws, 
-				screen_width, screen_height, 
-				{ 
-					normals = _drawlist[i].normals,
-					primitive_index = i
-				}
-			)
-		else
-			local ws = scale_quad(_drawlist[i].verts, _scale)
-			ws = translate_quad(ws, _translation)
-			
-			rg3d:raster_quad(
-				ws, 
-				screen_width, screen_height, 
-				{ 
-					normals = _drawlist[i].normals,
-					primitive_index = i
-				}
-			)
-		end
-
-	end
-end
-
-
-
-local function hex2rgb(hex)
-	hex = hex:gsub("#","")
-	return tonumber("0x"..hex:sub(1,2)), tonumber("0x"..hex:sub(3,4)), tonumber("0x"..hex:sub(5,6))
-end
-
-local LOAD_LUA_MESH = true
-
-local function load_mesh(_name, _export)
-	if IS_RG or LOAD_LUA_MESH then 
-		if IS_RG then
-			return require(_name .. ".lua")
-		else
-			return require(_name)
-		end
-	elseif rmesh then
-		local mesh = rmesh:parse_obj(_name .. ".obj")
-		if mesh and _export or false then
-			rmesh:export_mesh( _name .. ".lua", mesh )
-		end
-		return mesh
-	end
-end
-
-local function load_logo_mesh(_color)
-	local col = Color(hex2rgb(_color))
-	local mesh = nil
-
-	if IS_RG or LOAD_LUA_MESH then 
-		mesh = load_mesh("logo_" .. _color)
-	elseif rmesh then
-		mesh = load_mesh("logo_mesh/logo_" .. _color,true)
-	end
-
-	return {
-		mesh = mesh, 
-		q_func = create_shader_flat_shaded_quad(col),
-		t_func = create_shader_flat_shaded_tri(col),
-		draw = function(self,_scale,_translation)
-			rg3d:set_quad_func(self.q_func)
-			rg3d:set_tri_func(self.t_func)
-			draw_mesh(self.mesh, _scale, _translation)
-		end
-	}
-end
-
-local logo_meshes = {
-	load_logo_mesh("000000"), 
-	load_logo_mesh("9BADB7"), 
-	load_logo_mesh("255DA8"), 
-	load_logo_mesh("323C39"), 
-	load_logo_mesh("524B24"), 
-	load_logo_mesh("696A6A"), 
-	load_logo_mesh("847E87"), 
-	load_logo_mesh("00984D"), 
-	load_logo_mesh("35815C"), 
-	load_logo_mesh("476489"), 
-	load_logo_mesh("AB6560"), 
-	load_logo_mesh("AF805F"), 
-	load_logo_mesh("B4A64C"), 
-	load_logo_mesh("B5B5B5"), 
-	load_logo_mesh("C6B533"), 
-	load_logo_mesh("EE5F56"), 
-	load_logo_mesh("F69753"), 
-	load_logo_mesh("FBF236"), 
-	load_logo_mesh("FFE32D"), 
-	load_logo_mesh("FFFFFF")
-}
-
 local function drawlist_build(_mesh)
 	local command_list = {}
-	local POS = 5
+	local COL = 1
+	local POS = 4
 	
 	for i = 1, #_mesh do
 		local m = _mesh[i]
-		local shader = m[1]
-		local col = Color(m[2], m[3], m[4])
+		local col = Color(m[COL+0], m[COL+1], m[COL+2])
 		
 		local command = nil
 		local face = {
@@ -442,20 +337,15 @@ local function drawlist_build(_mesh)
 			vec3(m[POS+3],m[POS+4],m[POS+5]),
 			vec3(m[POS+6],m[POS+7],m[POS+8])
 		}
-
+		
 		local func = rg3d.raster_triangle
-
+		
 		if m[POS+9] then -- if not nil, face is a quad
 			func = rg3d.raster_quad
 			table.insert(face, vec3(m[POS+9],m[POS+10],m[POS+11]))
-			
-			table.insert(command_list, {rg3d.set_quad_func, {shader_quad_random}})
 		end
 		
-		table.insert(command_list, {rg3d.set_tri_func,  {shader_tri_random}})
 		command = {func, {face, screen_width, screen_height, {primitive_index = i,color = col}}}
-
-		
 		table.insert(command_list, command)
 	end
 	return command_list
@@ -467,16 +357,28 @@ local function drawlist_submit(_list)
 	end
 end
 
-local template_mesh = require "template_mesh"
-local template_drawlist = drawlist_build(template_mesh)
+local function require_drawlist(_name)
+	local mesh = require(_name)
+	return drawlist_build(mesh)
+end
 
+local logo_drawlist = require_drawlist "rg3d"
+local torus_drawlist = require_drawlist "torus"
+
+local function shader_quad_basic(_p1,_p2,_p3,_p4,_shader_input)		
+	FillQuad(_p1, _p2, _p3, _p4, _shader_input.color or color.white)
+end
+
+local function shader_tri_basic(_p1,_p2,_p3,_shader_input)		
+	gdt.VideoChip0:FillTriangle(_p1,_p2,_p3,_shader_input.color or color.white)
+end
 
 -- update function is repeated every time tick
 function update()
 	local dt = gdt.CPU0.DeltaTime
 	
-	-- print("FPS: ", 1/dt)
-
+	--print("FPS: ", 1/dt)
+	
 	update_dir(dt * 1.2)
 	local speed = 5
 	if rinput["LeftShift"] then speed = speed * 4 end
@@ -493,20 +395,15 @@ function update()
 	rg3d:push_look_at(cam_pos, cam_pos + cam_dir, vec3(0,1,0))
 	rg3d:begin_render() -- begin renderpass
 		rg3d:set_clip_far( true )
+
 		rg3d:set_tri_func(chamber_tri_shader)
 		rg3d:set_quad_func(palette_quad_shader) -- set to custom
-		
-		draw_mesh(torus_drawlist, vec3( 1.3, 1.3, 1.3), vec3(-3,2,0))
+		drawlist_submit(torus_drawlist)
 	
 		-- Render Logo
-		local pos = vec3(0,0,5)
-		local size = vec3(10,math.min(10, gdt.CPU0.Time * 5),10)
-
-		for i = 1, #logo_meshes do
-			logo_meshes[i]:draw(size, pos)
-		end
-
-		drawlist_submit(template_drawlist)
+		rg3d:set_quad_func(shader_quad_basic)
+		rg3d:set_tri_func(shader_tri_basic)
+		drawlist_submit(logo_drawlist)
 	rg3d:end_render()
 	
 
