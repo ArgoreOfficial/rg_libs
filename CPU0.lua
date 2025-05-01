@@ -355,8 +355,9 @@ local function draw_mesh(_drawlist,_scale,_translation)
 		end
 
 	end
-	
 end
+
+
 
 local function hex2rgb(hex)
 	hex = hex:gsub("#","")
@@ -426,11 +427,55 @@ local logo_meshes = {
 	load_logo_mesh("FFFFFF")
 }
 
+local function drawlist_build(_mesh)
+	local command_list = {}
+	local POS = 5
+	
+	for i = 1, #_mesh do
+		local m = _mesh[i]
+		local shader = m[1]
+		local col = Color(m[2], m[3], m[4])
+		
+		local command = nil
+		local face = {
+			vec3(m[POS+0],m[POS+1],m[POS+2]),
+			vec3(m[POS+3],m[POS+4],m[POS+5]),
+			vec3(m[POS+6],m[POS+7],m[POS+8])
+		}
+
+		local func = rg3d.raster_triangle
+
+		if m[POS+9] then -- if not nil, face is a quad
+			func = rg3d.raster_quad
+			table.insert(face, vec3(m[POS+9],m[POS+10],m[POS+11]))
+			
+			table.insert(command_list, {rg3d.set_quad_func, {shader_quad_random}})
+		end
+		
+		table.insert(command_list, {rg3d.set_tri_func,  {shader_tri_random}})
+		command = {func, {face, screen_width, screen_height, {primitive_index = i,color = col}}}
+
+		
+		table.insert(command_list, command)
+	end
+	return command_list
+end
+
+local function drawlist_submit(_list)
+	for i = 1, #_list do
+		_list[i][1](rg3d, table.unpack(_list[i][2]))
+	end
+end
+
+local template_mesh = require "template_mesh"
+local template_drawlist = drawlist_build(template_mesh)
+
+
 -- update function is repeated every time tick
 function update()
 	local dt = gdt.CPU0.DeltaTime
 	
-	print("FPS: ", 1/dt)
+	-- print("FPS: ", 1/dt)
 
 	update_dir(dt * 1.2)
 	local speed = 5
@@ -460,6 +505,8 @@ function update()
 		for i = 1, #logo_meshes do
 			logo_meshes[i]:draw(size, pos)
 		end
+
+		drawlist_submit(template_drawlist)
 	rg3d:end_render()
 	
 
