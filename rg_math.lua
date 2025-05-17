@@ -115,6 +115,14 @@ function lib:vec3_mult(_lhs,_rhs)
 	)
 end
 
+function lib:rot_to_dir(_pitch, _yaw)
+	return vec3(
+		math.cos(_yaw)*math.cos(_pitch),
+		math.sin(_pitch),
+		math.sin(_yaw)*math.cos(_pitch)
+	)
+end
+
 --------------------------------------------------------
 --[[  Vector 4                                        ]]
 --------------------------------------------------------
@@ -430,12 +438,27 @@ function lib:mat4_look_at(_eye, _center, _up)
     return mat
 end
 
+--------------------------------------------------------
+--[[  Geometry                                        ]]
+--------------------------------------------------------
+
 function lib:area_of_four_points(_a,_b,_c,_d)
     local v = (_a.X*_b.Y - _a.Y*_b.X) + 
               (_b.X*_c.Y - _b.Y*_c.X) + 
               (_c.X*_d.Y - _c.Y*_d.X) +
               (_d.X*_a.Y - _d.Y*_a.X)
     return v / 2
+end
+
+function lib:get_triangle_normal(_triangle)
+	local U = _triangle[2] - _triangle[1]
+	local V = _triangle[3] - _triangle[1]
+
+	local nx = (U.Y * V.Z) - (U.Z * V.Y)
+	local ny = (U.Z * V.X) - (U.X * V.Z)
+	local nz = (U.X * V.Y) - (U.Y * V.X)
+	
+	return vec3(nx, ny, nz)
 end
 
 return lib
