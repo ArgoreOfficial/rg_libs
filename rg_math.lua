@@ -36,7 +36,7 @@ function lib:radians(_degrees)
     return _degrees * ( lib.const.PI / 180.0 )
 end
 
-function lib.degrees( _radians ) 
+function lib:degrees( _radians ) 
 	return _radians * ( 180.0 / lib.const.PI )
 end
 
@@ -107,6 +107,13 @@ function lib:vec3_to_screen(_vec,_width,_height,_depth)
     )
 end
 
+function lib:vec3_mult(_lhs,_rhs)
+	return vec3(
+		_lhs.X * _rhs.X,
+		_lhs.Y * _rhs.Y,
+		_lhs.Z * _rhs.Z
+	)
+end
 
 --------------------------------------------------------
 --[[  Vector 4                                        ]]

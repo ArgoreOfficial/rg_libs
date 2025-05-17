@@ -4,9 +4,14 @@ local IS_RG = _VERSION == "Luau"
 local rmath = require("rg_math")
 local rg3d  = require("rg_3d")
 
+local state_machine = require("statemachine")
+local state_game = state_machine:add_state(require("state_game"))
+local state_menu = state_machine:add_state(require("state_menu"))
+state_machine:set_state(state_menu)
+
 local palette = gdt.ROM.User.SpriteSheets["stripes.png"]
 local shading = gdt.ROM.User.SpriteSheets["shading_cross.png"]
-local rg_tex  = gdt.ROM.User.SpriteSheets["rg_logo.png"]
+--local rg_tex  = gdt.ROM.User.SpriteSheets["rg_logo.png"]
 
 gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
 -- this has to be grabbed after because of love2d stuff
@@ -14,23 +19,13 @@ local rb1 = gdt.VideoChip0.RenderBuffers[1]
 
 rg3d:push_perspective(
 	gdt.VideoChip0.Width / gdt.VideoChip0.Height,    -- screen aspect ratio
-	1.22, -- FOV (radians)
+	rmath:radians(39.6), -- FOV (radians)
 	0.5,  -- near clip
 	50    -- far clip
 )
 
 local screen_width  = gdt.VideoChip0.Width
 local screen_height = gdt.VideoChip0.Height
-
-local quad_vbo = {
-	-- bottom quad
-	vec3(-0.5, 0.0, -0.5),
-	vec3(-0.5, 0.0,  0.5),
-	vec3( 0.5, 0.0,  0.5),
-	vec3( 0.5, 0.0, -0.5)
-}
-
-local draw_count = 40
 
 local cam_pos   = vec3(3,3,0)
 local cam_pitch = 0
@@ -162,10 +157,10 @@ local function create_shader_scrolling_quad(_texture, _width, _height, _scroll_x
 	return function(_p1,_p2,_p3,_p4,_shader_input)		
 		local t = (gdt.CPU0.Time * 16) % 32
 		
-		local n1 = (_shader_input and _shader_input.normals) and _shader_input.normals[1] or -sun_dir
-		local n2 = (_shader_input and _shader_input.normals) and _shader_input.normals[2] or -sun_dir
-		local n3 = (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -sun_dir
-		local n4 = (_shader_input and _shader_input.normals) and _shader_input.normals[4] or -sun_dir
+		local n1 = _shader_input.normal or (_shader_input and _shader_input.normals) and _shader_input.normals[1] or -sun_dir
+		local n2 = _shader_input.normal or (_shader_input and _shader_input.normals) and _shader_input.normals[2] or -sun_dir
+		local n3 = _shader_input.normal or (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -sun_dir
+		local n4 = _shader_input.normal or (_shader_input and _shader_input.normals) and _shader_input.normals[4] or -sun_dir
 		
 		local d1 = rmath:vec3_dot(n1, -sun_dir) * 0.5 + 0.5
 		local d2 = rmath:vec3_dot(n2, -sun_dir) * 0.5 + 0.5
@@ -190,21 +185,6 @@ local function create_shader_scrolling_quad(_texture, _width, _height, _scroll_x
 	end
 end
 
-
-local function orientation(_p1,_p2,_p3)
-	-- orientation of an (x, y) triplet
-	local val = ((_p2.Y - _p1.Y) * (_p3.Z - _p2.X)) -
-				((_p2.X - _p1.Z) * (_p3.Y - _p2.Y)) ;
-
-	if val == 0 then
-		return 0
-	elseif val > 0 then
-		return 1
-	else
-		return -1
-	end
-end
-
 local function create_shader_flat_shaded_tri(_color)
 	return function(_p1,_p2,_p3,_shader_input)		
 		local t = (gdt.CPU0.Time * 16) % 32
@@ -224,55 +204,35 @@ local function create_shader_flat_shaded_tri(_color)
 	end
 end
 
-local function create_shader_flat_shaded_quad(_color)
-	return function(_p1,_p2,_p3,_p4,_shader_input)		
-		local t = (gdt.CPU0.Time * 16) % 32
-		
-		local n1 = (_shader_input and _shader_input.normals) and _shader_input.normals[1] or -sun_dir
-		local n2 = (_shader_input and _shader_input.normals) and _shader_input.normals[2] or -sun_dir
-		local n3 = (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -sun_dir
-		
-		local d1 = rmath:vec3_dot(n1, -sun_dir) * 0.5 + 0.5
-		local d2 = rmath:vec3_dot(n2, -sun_dir) * 0.5 + 0.5
-		local d3 = rmath:vec3_dot(n3, -sun_dir) * 0.5 + 0.5
-		
-		local c = math.min(d1,d2,d3)
-
-		FillQuad(_p1,_p2,_p3,_p4,Color(_color.R*c,_color.G*c,_color.B*c))
-		--quad_shading(_p3,_p4,_p1,_p2,color.black,d1,d2,d3,d4)
-	end
-end
-
-local function raster_quad_sprite_mipped(_p1,_p2,_p3,_p4,_shader_input)
-	local u, v, fraction = rg3d:get_mip_UVs(_p1, _p2, _p3, _p4, 64, 64)
-	local mip = rg3d:get_mip_level(_p1, _p2, _p3, _p4, 64, 64)
-
-	local z = math.max(_p1.Z, _p2.Z, _p3.Z, _p4.Z)
-	local c = 1 - (z / 50) -- z / g_far
-	local fog = Color(c*255, c*255, c*255)
-	local mip0col = ColorRGBA(fog.R, fog.G, fog.B, (1-fraction) * 255)
-	
-	local u2, v2 = rg3d:get_mip_level_UVs(mip-1, 64, 64)
-	gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4, miptexture, u, v, fog, color.clear)
-	if mip > 1 then
-		gdt.VideoChip0:RasterCustomSprite(_p1,_p2,_p3,_p4, miptexture, u2, v2, mip0col, color.clear)
-	end
-end
-
 local function raster_tri_sprite(_p1,_p2,_p3)
 	gdt.VideoChip0:DrawTriangle(_p1,_p2,_p3,color.green)
 end
 
-local function vec3_mult(_lhs,_rhs)
-	return vec3(
-		_lhs.X * _rhs.X,
-		_lhs.Y * _rhs.Y,
-		_lhs.Z * _rhs.Z
-	)
+local function background_scroll_shader(_p1,_p2,_p3,_p4,_shader_input)		
+	local t = (gdt.CPU0.Time * 16) % 32
+	gdt.VideoChip0:RasterCustomSprite(
+			_p1,_p2,_p3,_p4,
+			palette,
+			vec2(0,0),vec2(64,32),
+			color.white,
+			color.clear
+		)
 end
 
-local palette_quad_shader = create_shader_scrolling_quad(palette,64,32,0,1)
-local chamber_tri_shader  = create_shader_flat_shaded_tri(color.white)
+local function logo_shader(_p1,_p2,_p3,_p4,_shader_input)		
+		local n1 = _shader_input.normal or (_shader_input and _shader_input.normals) and _shader_input.normals[1] or -sun_dir
+		local n2 = _shader_input.normal or (_shader_input and _shader_input.normals) and _shader_input.normals[2] or -sun_dir
+		local n3 = _shader_input.normal or (_shader_input and _shader_input.normals) and _shader_input.normals[3] or -sun_dir
+		local n4 = _shader_input.normal or (_shader_input and _shader_input.normals) and _shader_input.normals[4] or -sun_dir
+		
+		local d1 = rmath:vec3_dot(n1, -sun_dir) * 0.5 + 0.5
+		local d2 = rmath:vec3_dot(n2, -sun_dir) * 0.5 + 0.5
+		local d3 = rmath:vec3_dot(n3, -sun_dir) * 0.5 + 0.5
+		local d4 = rmath:vec3_dot(n4, -sun_dir) * 0.5 + 0.5
+		
+		local c = math.min(d1,d2,d3,d4)*255
+		FillQuad(_p1,_p2,_p3,_p4,Color(c,c,c))
+	end
 
 local function shader_quad_random(_p1,_p2,_p3,_p4,_shader_input)		
 	math.randomseed( _shader_input.primitive_index )
@@ -286,38 +246,15 @@ local function shader_tri_random(_p1,_p2,_p3,_shader_input)
 	gdt.VideoChip0:FillTriangle(_p1,_p2,_p3,color)
 end
 
-local function translate_tri(_quad, _vec)
-	return {
-		_quad[1] + _vec,
-		_quad[2] + _vec,
-		_quad[3] + _vec
-	}
-end
+local function get_triangle_normal(_triangle)
+	local U = _triangle[2] - _triangle[1]
+	local V = _triangle[3] - _triangle[1]
 
-local function scale_tri(_quad, _vec)
-	return {
-		vec3_mult(_quad[1], _vec),
-		vec3_mult(_quad[2], _vec),
-		vec3_mult(_quad[3], _vec)
-	}
-end
-
-local function translate_quad(_quad, _vec)
-	return {
-		_quad[1] + _vec,
-		_quad[2] + _vec,
-		_quad[3] + _vec,
-		_quad[4] + _vec
-	}
-end
-
-local function scale_quad(_quad, _vec)
-	return {
-		vec3_mult(_quad[1], _vec),
-		vec3_mult(_quad[2], _vec),
-		vec3_mult(_quad[3], _vec),
-		vec3_mult(_quad[4], _vec)
-	}
+	local nx = (U.Y * V.Z) - (U.Z * V.Y)
+	local ny = (U.Z * V.X) - (U.X * V.Z)
+	local nz = (U.X * V.Y) - (U.Y * V.X)
+	
+	return vec3(nx, ny, nz)
 end
 
 local function drawlist_build(_mesh)
@@ -343,7 +280,11 @@ local function drawlist_build(_mesh)
 			table.insert(face, vec3(m[POS+9],m[POS+10],m[POS+11]))
 		end
 		
-		command = {func, {face, screen_width, screen_height, {primitive_index = i,color = col}}}
+		command = {func, {face, screen_width, screen_height, {
+			primitive_index = i,
+			color = col,
+			normal = get_triangle_normal(face)
+		}}}
 		table.insert(command_list, command)
 	end
 	return command_list
@@ -360,7 +301,10 @@ local function require_drawlist(_name)
 	return drawlist_build(mesh)
 end
 
-local logo_drawlist = require_drawlist "logo_mesh"
+local logo_drawlist = require_drawlist "argore_logo"
+local logo_face_drawlist = require_drawlist "argore_logo_face"
+local bg_drawlist   = require_drawlist "argore_bg"
+local camera_path   = require "camera_path"
 
 local function shader_quad_basic(_p1,_p2,_p3,_p4,_shader_input)		
 	FillQuad(_p1, _p2, _p3, _p4, _shader_input.color or color.white)
@@ -371,11 +315,34 @@ local function shader_tri_basic(_p1,_p2,_p3,_shader_input)
 end
 
 -- update function is repeated every time tick
+local path_frame = 1
+local path_frame_timer = 0
+local path_framerate = 1/60
 function update()
 	local dt = gdt.CPU0.DeltaTime
 	
-	--print("FPS: ", 1/dt)
-	
+	path_frame_timer = path_frame_timer + dt
+	if path_frame_timer > path_framerate then
+		path_frame = path_frame + 1
+		path_frame_timer = path_frame_timer - path_framerate
+
+		if path_frame > 230 then
+			path_frame = 1
+		end
+	end
+
+	state_machine:update(dt)
+
+
+	cam_pos   = camera_path[ path_frame ].pos
+	cam_pitch = rmath:radians(camera_path[ path_frame ].pitch)
+	cam_yaw   = rmath:radians(camera_path[ path_frame ].yaw)
+
+
+	if gdt.CPU0.Time > 5 then
+		state_machine:set_state(state_game)
+	end
+
 	update_dir(dt * 1.2)
 	local speed = 5
 	if rinput["LeftShift"] then speed = speed * 4 end
@@ -390,17 +357,26 @@ function update()
 	gdt.VideoChip0:Clear(color.gray)
 	
 	rg3d:push_look_at(cam_pos, cam_pos + cam_dir, vec3(0,1,0))
-	rg3d:begin_render() -- begin renderpass
-		rg3d:set_clip_far( true )
+	rg3d:set_tri_func(shader_tri_random)
+
+	-- draw scrolling background
 	
-		-- Render Logo
-		rg3d:set_quad_func(shader_quad_basic)
-		rg3d:set_tri_func(shader_tri_basic)
+	rg3d:set_quad_func(background_scroll_shader)
+	rg3d:begin_render()
+		drawlist_submit(bg_drawlist)
+	rg3d:end_render()
+	
+	-- draw logo
+	
+	rg3d:set_quad_func(logo_shader)
+	rg3d:begin_render()
 		drawlist_submit(logo_drawlist)
 	rg3d:end_render()
 	
-
-
+	rg3d:begin_render()
+		drawlist_submit(logo_face_drawlist)
+	rg3d:end_render()
+	
 	gdt.VideoChip0:RenderOnScreen()
 	gdt.VideoChip0:Clear(color.black)
 

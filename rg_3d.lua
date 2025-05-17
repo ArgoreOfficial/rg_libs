@@ -248,6 +248,45 @@ function lib:to_screen(_vec, _screen_width, _screen_height)
 end
 
 --------------------------------------------------------
+--[[  Transformations                                 ]]
+--------------------------------------------------------
+
+function lib:translate_tri(_quad, _vec)
+	return {
+		_quad[1] + _vec,
+		_quad[2] + _vec,
+		_quad[3] + _vec
+	}
+end
+
+function lib:scale_tri(_quad, _vec)
+	return {
+		rmath:vec3_mult(_quad[1], _vec),
+		rmath:vec3_mult(_quad[2], _vec),
+		rmath:vec3_mult(_quad[3], _vec)
+	}
+end
+
+function lib:translate_quad(_quad, _vec)
+	return {
+		_quad[1] + _vec,
+		_quad[2] + _vec,
+		_quad[3] + _vec,
+		_quad[4] + _vec
+	}
+end
+
+function lib:scale_quad(_quad, _vec)
+	return {
+		rmath:vec3_mult(_quad[1], _vec),
+		rmath:vec3_mult(_quad[2], _vec),
+		rmath:vec3_mult(_quad[3], _vec),
+		rmath:vec3_mult(_quad[4], _vec)
+	}
+end
+
+
+--------------------------------------------------------
 --[[  Math Util                                       ]]
 --------------------------------------------------------
 
