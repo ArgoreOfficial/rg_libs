@@ -8,6 +8,12 @@ function _G._display_print()
         if now - v.t > lifetime then
             table.remove(_print_stack,i)
         else
+            local font = love.graphics.getFont()
+            local width  = font:getWidth (v.str)
+            local height = font:getHeight(v.str)
+            
+            love.graphics.setColor(0,0,0,1)
+            love.graphics.rectangle("fill", 0, (i-1)*16, width, height)
             love.graphics.setColor(1,1,1,1)
             love.graphics.print(v.str, 0, (i-1)*16)
         end

@@ -8,7 +8,7 @@ To use with your own, copy `main.lua` and the `RetroGadgets/` folder from this r
 Your folder should look like so:  
 ```
 - RetroGadgets/
-- CPU0.lua
+- Import/CPU0.lua
 - main.lua
 ```
 At the top of `main.lua` there is a table containing config for the gadget

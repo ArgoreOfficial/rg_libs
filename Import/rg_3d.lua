@@ -243,8 +243,7 @@ function lib:to_clip(_vec)
 end
 
 function lib:to_screen(_vec, _screen_width, _screen_height)
-	local sv4 = rmath:vec3_to_screen(lib:to_clip(_vec), _screen_width, _screen_height)
-	return vec3(sv4.X, sv4.Y, sv4.Z)
+	return rmath:vec3_to_screen(lib:to_clip(_vec), _screen_width, _screen_height)
 end
 
 --------------------------------------------------------

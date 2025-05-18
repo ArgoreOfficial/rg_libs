@@ -4,7 +4,7 @@
 
 GADGET = {
 	ScreenWidth = 384,
-	ScreenHeight = 292,
+	ScreenHeight = 192,
 	Scale = 2
 }
 
@@ -27,7 +27,7 @@ _setup_rg_runtime(CONFIG)
 -- LÖVE2D setup
 
 -- RG Layer
-require( "RetroGadgets/rg" )
+require( "RetroGadgets.rg" )
 
 table.unpack = unpack
 
@@ -42,7 +42,7 @@ function love.load()
 	love.graphics.setLineWidth(1) 
 	
 	gdt.VideoChip0:RenderOnScreen()
-	dofile( "CPU0.lua" )
+	dofile( "Import/CPU0.lua" )
 	love.graphics.setCanvas()
 end
 
