@@ -6,7 +6,7 @@ local rmath = require "rg_math"
 local screen_width  = gdt.VideoChip0.Width
 local screen_height = gdt.VideoChip0.Height
 
-function lib:drawlist_build(_mesh)
+function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 	local command_list = {}
 	local COL = 1
 	local POS = 4
@@ -29,6 +29,13 @@ function lib:drawlist_build(_mesh)
 			table.insert(face, vec3(m[POS+9],m[POS+10],m[POS+11]))
 		end
 		
+		if _pos or _rot or _scale then
+			local transform = rmath:mat4_model_matrix(_pos or vec3(0,0,0), _rot or vec3(0,45,0), _scale or vec3(1,1,1))
+			for i = 1, #face do
+				face[i] = rmath:mat4_transform(transform, face[i])
+			end
+		end
+
 		command = {func, {face, screen_width, screen_height, {
 			primitive_index = i,
 			color = col,
@@ -45,9 +52,9 @@ function lib:drawlist_submit(_list)
 	end
 end
 
-function lib:require_drawlist(_name)
-	local mesh = require(_name .. (IS_RG and ".lua" or ""))
-	return lib:drawlist_build(mesh)
+function lib:require_drawlist(_name,_pos,_rot,_scale)
+	local mesh = require(_name)
+	return lib:drawlist_build(mesh,_pos,_rot,_scale)
 end
 
 return lib

@@ -24,8 +24,9 @@ local rg3d  = require("rg_3d")
 local engine = require "engine"
 local state_machine = require("state_machine")
 
-state_machine:add_state("game", require("state_game"))
-state_machine:add_state("menu", require("state_menu"))
+state_machine:add_state("splash", require("state_splash"))
+state_machine:add_state("menu",   require("state_menu"))
+state_machine:add_state("game",   require("state_game"))
 state_machine:set_state("menu")
 
 local shading = gdt.ROM.User.SpriteSheets["shading_cross.png"]
@@ -34,13 +35,6 @@ local shading = gdt.ROM.User.SpriteSheets["shading_cross.png"]
 gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
 -- this has to be grabbed after because of love2d stuff
 local rb1 = gdt.VideoChip0.RenderBuffers[1]
-
-rg3d:push_perspective(
-	gdt.VideoChip0.Width / gdt.VideoChip0.Height,    -- screen aspect ratio
-	rmath:radians(47/2), -- FOV (radians)
-	0.5,  -- near clip
-	50    -- far clip
-)
 
 function eventChannel1(_sender,_event)
 	engine.rinput[_event.InputName] = _event.ButtonDown

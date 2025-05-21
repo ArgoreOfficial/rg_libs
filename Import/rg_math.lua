@@ -308,6 +308,13 @@ function lib:mat4(
     }
 end
 
+function lib:mat4_print(_mat)
+    print(_mat.m00, _mat.m01, _mat.m02, _mat.m03)
+    print(_mat.m10, _mat.m11, _mat.m12, _mat.m13)
+    print(_mat.m20, _mat.m21, _mat.m22, _mat.m23)
+    print(_mat.m30, _mat.m31, _mat.m32, _mat.m33)
+end
+
 function lib:mat4_mult_vec4( _mat, _vec )
 	return lib:vec4(
 		_vec.X*_mat.m00 + _vec.Y*_mat.m01 + _vec.Z*_mat.m02 + _vec.W*_mat.m03,
@@ -436,6 +443,90 @@ function lib:mat4_look_at(_eye, _center, _up)
     mat.m33 = e.W
 
     return mat
+end
+
+function lib:mat4_mult_mat4(_lhs, _rhs)
+    local res = lib:mat4()
+    for row = 0, 3 do
+	    for column = 0, 3 do
+            local v = 0
+
+            for inner = 0, 3 do
+                local a_idx = "m" .. tostring(row) .. tostring(inner)
+                local b_idx = "m" .. tostring(inner) .. tostring(column )
+                
+                v = v + _lhs[a_idx] * _rhs[b_idx]
+                res["m" .. tostring(row) .. tostring(column)] = v
+            end
+        end
+    end
+    return res
+end
+
+-- wv::Matrix4x4::scale
+function lib:mat4_scale(_m, _scale)
+	return lib:mat4_mult_mat4( lib:mat4(
+        _scale.X, 0.0,      0.0, 0.0,
+        0.0, _scale.Y,      0.0, 0.0,
+        0.0,      0.0, _scale.Z, 0.0
+    ), _m )
+end
+
+-- wv::Matrix4x4::rotateX
+function lib:mat4_rotateX(_m, _angle)
+	local mat = lib:mat4(
+        1.0,               0.0,              0.0, 0.0,
+        0.0,  math.cos(_angle), math.sin(_angle), 0.0,
+        0.0, -math.sin(_angle), math.cos(_angle), 0.0
+    )
+
+	return lib:mat4_mult_mat4(mat, _m)
+end
+
+-- wv::Matrix4x4::rotateY
+function lib:mat4_rotateY(_m, _angle)
+	local mat = lib:mat4(
+        math.cos( _angle ), 0.0, -math.sin( _angle ), 0.0,
+        0.0, 1.0,                 0.0,                0.0,
+        math.sin( _angle ), 0.0,  math.cos( _angle ), 0.0
+    )
+
+	return lib:mat4_mult_mat4(mat, _m)
+end
+
+-- wv::Matrix4x4::rotateZ
+function lib:mat4_rotateZ(_m, _angle)
+	local mat = lib:mat4(
+         math.cos( _angle ), math.sin( _angle ), 0.0, 0.0,
+        -math.sin( _angle ), math.cos( _angle ), 0.0, 0.0,
+        0.0,                0.0,                 1.0, 0.0
+    )
+    
+	return lib:mat4_mult_mat4(mat, _m)
+end
+
+-- wv::Matrix4x4
+function lib:mat4_translate(_m, _t)
+    return lib:mat4_mult_mat4( lib:mat4(
+          1.0,  0.0,  0.0, 0.0,
+          0.0,  1.0,  0.0, 0.0,
+          0.0,  0.0,  1.0, 0.0,
+         _t.X, _t.Y, _t.Z, 1.0
+    ), _m )
+end
+
+function lib:mat4_model_matrix(_pos,_rot,_scale)
+    local model = lib:mat4()
+
+	model = lib:mat4_translate(model, _pos)
+    
+	model = lib:mat4_rotateZ(model, lib:radians(_rot.Z))
+	model = lib:mat4_rotateY(model, lib:radians(_rot.Y))
+	model = lib:mat4_rotateX(model, lib:radians(_rot.X))
+    
+	model = lib:mat4_scale(model, _scale)
+
+    return model
 end
 
 --------------------------------------------------------
