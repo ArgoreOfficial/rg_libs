@@ -446,6 +446,9 @@ function lib:mat4_look_at(_eye, _center, _up)
 end
 
 function lib:mat4_mult_mat4(_lhs, _rhs)
+    if not _lhs then return _rhs end
+    if not _rhs then return _lhs end
+
     local res = lib:mat4()
     for row = 0, 3 do
 	    for column = 0, 3 do

@@ -17,38 +17,14 @@ function state:on_enter()
 		50    -- far clip
 	)
 
-	engine.camera_pos = vec3(0,0,3)
+	engine.camera_pos = vec3(0,0,2)
 	engine.camera_pitch = 0
-	engine.camera_yaw   = rmath:radians(-90)
+	engine.camera_yaw   = rmath:radians(-100)
 end
 
 function state:on_exit()
 	menu_mesh = nil
 end
-
-local function get_move_wish()
-	local move_input = vec3(0,0,0)
-	
-	if engine.rinput["W"] then move_input = move_input + vec3(0,0, 1) end
-	if engine.rinput["S"] then move_input = move_input + vec3(0,0,-1) end
-
-	if engine.rinput["A"] then move_input = move_input + vec3(-1,0,0) end
-	if engine.rinput["D"] then move_input = move_input + vec3( 1,0,0) end
-
-	if engine.rinput["E"] then move_input = move_input + vec3(0, 1,0) end
-	if engine.rinput["Q"] then move_input = move_input + vec3(0,-1,0) end
-
-	local up      = vec3(0,1,0)
-	local right   = rmath:rot_to_dir(0, engine.camera_yaw + rmath:radians(90))
-	local forward = rmath:rot_to_dir(engine.camera_pitch, engine.camera_yaw)
-
-	local move_wish = right   * move_input.X + 
-					  up      * move_input.Y + 
-					  forward * move_input.Z
-
-	return rmath:vec3_normalize(move_wish)
-end
-
 
 function state:update(_delta_time)
 	local wish_pitch = 0
@@ -60,13 +36,8 @@ function state:update(_delta_time)
 	if engine.rinput["UpArrow"]   then wish_pitch = wish_pitch + 1 end
 	if engine.rinput["DownArrow"] then wish_pitch = wish_pitch - 1 end
 
-	engine.camera_pitch = engine.camera_pitch + wish_pitch * _delta_time * 1.2
-	engine.camera_yaw   = engine.camera_yaw   + wish_yaw   * _delta_time * 1.2
-
-	
 	local speed = 5
 	if engine.rinput["LeftShift"] then speed = speed * 4 end
-	engine.camera_pos = engine.camera_pos + get_move_wish() * _delta_time * speed
 end
 
 local function FillQuad(p1,p2,p3,p4,color)
@@ -124,7 +95,12 @@ local function color_shader_tri(_p1,_p2,_p3,_shader_input)
 		c = rmath.min(d1, d2, d3, d4)
 	end
 
-	gdt.VideoChip0:FillTriangle(_p1,_p2,_p3,Color(c,c,c))
+	local color = Color(
+		_shader_input.color.R * c,
+		_shader_input.color.G * c,
+		_shader_input.color.B * c
+	)
+	gdt.VideoChip0:FillTriangle(_p1,_p2,_p3,color)
 end
 
 function state:draw()
@@ -133,9 +109,16 @@ function state:draw()
 	rg3d:set_tri_func (color_shader_tri)
 	rg3d:set_quad_func(color_shader)
 
+	local rot_matrix = rmath:mat4_rotateY(nil,        math.cos(gdt.CPU0.Time) * rmath:radians(20))
+	rot_matrix       = rmath:mat4_rotateX(rot_matrix, math.sin(gdt.CPU0.Time*2) * rmath:radians(20))
+
+	rg3d:push_model_matrix(rot_matrix)
+	
 	rg3d:begin_render()
 		rmesh:drawlist_submit( menu_mesh )
 	rg3d:end_render()
+
+	--rg3d:push_model_matrix(rmath:mat4())
 end
 
 return state

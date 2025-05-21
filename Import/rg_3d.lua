@@ -19,6 +19,7 @@ local g_far = 50
 local g_eye     = vec3(0,0,0)
 local g_eye_dir = vec3(0,0,1)
 local g_view_mat = {}
+local g_model_view_mat = rmath:mat4()
 local g_debug_texture = gdt.ROM.User.SpriteSheets["debug.png"]
 
 local g_raster_tri_func  = nil
@@ -111,9 +112,10 @@ end
 --------------------------------------------------------
 
 function lib:push_look_at(_eye, _center, _up)
-	g_eye_dir  = rmath:vec3_normalize( _center - _eye )
+	g_eye_dir  = rmath:vec3_normalize(_center - _eye)
 	g_eye = _eye
 	g_view_mat = rmath:mat4_look_at(_eye, _center, _up)
+	g_model_view_mat = g_view_mat
 end
 
 function lib:push_perspective( _aspect, _fov, _near, _far )
@@ -125,6 +127,10 @@ function lib:push_perspective( _aspect, _fov, _near, _far )
 	g_perspective_m22 = ( _far + _near )       / ( _near - _far )
 	g_perspective_m32 = ( 2.0 * _far * _near ) / ( _near - _far )
     g_use_perspective = true
+end
+
+function lib:push_model_matrix(_model)
+	g_model_view_mat = rmath:mat4_mult_mat4(_model, g_view_mat) 
 end
 
 --------------------------------------------------------
@@ -227,7 +233,7 @@ end
 
 function lib:to_view(_vec)
 	local v4  = rmath:vec4(_vec.X, _vec.Y, _vec.Z, 1)
-	return rmath:mat4_transform(g_view_mat, v4)
+	return rmath:mat4_transform(g_model_view_mat, v4)
 end
 
 function lib:view_to_clip(_vec)
@@ -516,6 +522,13 @@ local function get_view_normal(_p1,_p2,_p3)
 	return view_normal
 end
 
+local function get_view_normal2(_p1,_p2,_p3)
+	local U = _p2 - _p1
+	local V = _p3 - _p1
+	local view_normal = rmath:vec3_normalize(rmath:vec3_cross(U, V))
+	return view_normal
+end
+
 function lib:raster_triangle(_tri, _render_width, _render_height, _shader_input)
 	local p1 = lib:to_view(_tri[1])
 	local p2 = lib:to_view(_tri[2])
@@ -532,11 +545,9 @@ function lib:raster_triangle(_tri, _render_width, _render_height, _shader_input)
 	local nearclipped = {}
 	local farclipped  = {}
 
-	local view_normal = get_view_normal(_tri[1],_tri[2],_tri[3])
-	if (view_normal.X + view_normal.Y + view_normal.Z) > 0 then
-		return
-	end
-
+	local dot = rmath:vec3_dot(rmath:get_triangle_normal({p1,p2,p3}), p1)
+	if dot > 0 then return end
+	
 	-- clip near plane
 	if near_count == 1 or near_count == 2 then 
 		clip_triangles_plane({triangle}, nearclipped, vec3(0, 0, -g_near), vec3(0, 0, -1.0))
@@ -559,8 +570,6 @@ function lib:raster_triangle(_tri, _render_width, _render_height, _shader_input)
 		t[2] = lib:view_to_clip(farclipped[i][2])
 		t[3] = lib:view_to_clip(farclipped[i][3])
 
-		_shader_input.view_normal = view_normal	
-
 		clip_and_raster_triangle(t, _render_width, _render_height, nil, nil, nil, nil, _shader_input)
 	end
 end
@@ -579,18 +588,14 @@ function lib:raster_quad(_quad, _render_width, _render_height, _shader_input)
 	if far_count == 0 then return end -- in front of far plane
 
 	if near_count == 4 and far_count == 4 then -- quad is fully inside
+		local dot = rmath:vec3_dot(rmath:get_triangle_normal({p1,p2,p4}), p1)
+		if dot > 0 then return end
+		
 		local t1 = lib:view_to_clip(p1)
 		local t2 = lib:view_to_clip(p2)
 		local t3 = lib:view_to_clip(p3)
 		local t4 = lib:view_to_clip(p4)
 		
-		local view_normal = get_view_normal(_quad[1],_quad[2],_quad[4])
-		if (view_normal.X + view_normal.Y + view_normal.Z) > 0 then
-			return
-		end
-	
-		_shader_input.view_normal = view_normal
-
 		clip_and_raster_quad({t1,t2,t3,t4}, _render_width, _render_height, nil, nil, nil, nil, _shader_input)
 	else
 		if far_count ~= 4 and not g_clip_far then return end 
