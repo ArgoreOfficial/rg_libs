@@ -63,22 +63,28 @@ function state_game:draw()
 	local shader_input = nil
 	local light_col = 1
 
+	local DEBUG = 0
+
 	for y, span in pairs(spans) do
 		for x = span[1], span[2] do
-			pixel = pd:GetPixel(x,y)
-			index = bit32.bor(
-				pixel.R,
-				bit32.lshift(pixel.G,8),
-				bit32.lshift(pixel.B,16))
-
-			if index > 0 then 
-				shader_input = rg3d:get_draw_call(index).args[4]
-				light_col = shader_input.light_intensity or 1
-				pd:SetPixel(x,y, Color(
-					shader_input.color.R * light_col,
-					shader_input.color.G * light_col,
-					shader_input.color.B * light_col
-				))
+			if DEBUG == 1 then
+				pd:SetPixel(x,y, color.white)
+			else
+				pixel = pd:GetPixel(x,y)
+				index = bit32.bor(
+					pixel.R,
+					bit32.lshift(pixel.G,8),
+					bit32.lshift(pixel.B,16))
+	
+				if index > 0 then 
+					shader_input = rg3d:get_draw_call(index).args[4]
+					light_col = shader_input.light_intensity or 1
+					pd:SetPixel(x,y, Color(
+						shader_input.color.R * light_col,
+						shader_input.color.G * light_col,
+						shader_input.color.B * light_col
+					))
+				end
 			end
 		end
 	end

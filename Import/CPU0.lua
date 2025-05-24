@@ -27,7 +27,7 @@ local state_machine = require("state_machine")
 state_machine:add_state("splash", require("state_splash"))
 state_machine:add_state("menu",   require("state_menu"))
 state_machine:add_state("game",   require("state_game"))
-state_machine:set_state("menu")
+state_machine:set_state("game")
 
 local shading = gdt.ROM.User.SpriteSheets["shading_cross.png"]
 --local rg_tex  = gdt.ROM.User.SpriteSheets["rg_logo.png"]

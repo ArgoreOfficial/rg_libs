@@ -34,6 +34,8 @@ local g_clip_far = true
 local g_current_renderpass = nil
 local g_draws = {}
 local g_draw_id = 1
+local g_spans = {}
+
 
 --------------------------------------------------------
 --[[  Pipeline State Functions                        ]]
@@ -79,6 +81,7 @@ function lib:begin_render()
 
 	g_current_renderpass = {}
 	g_draw_id = 1
+	--g_spans = {}
 end
 
 function lib:end_render()
@@ -94,30 +97,31 @@ function lib:end_render()
 	table.sort(tkeys)
 	local num_drawcalls = 0
 
-	local spans = {}
-
-	local bounds = nil
 	for _, k in ipairs(tkeys) do 
-		bounds = g_current_renderpass[k].func(unpack(g_current_renderpass[k].args))
-
-		if bounds then
-			for i = math.floor(bounds.min.Y), math.floor(bounds.max.Y), 1 do
-				if spans[i] then
-					spans[i] = {
-						math.min(spans[i][1], math.floor(bounds.min.X+1)), 
-						math.max(spans[i][2], math.floor(bounds.max.X+1))
-					}
-				else
-					spans[ i ] = {math.floor(bounds.min.X+1), math.floor(bounds.max.X+1)}
-				end
-			end
-		end
-
+		g_current_renderpass[k].func(unpack(g_current_renderpass[k].args))
 		num_drawcalls = num_drawcalls + 1
 	end
 	
 	g_current_renderpass = nil
-	return spans
+	return g_spans
+end
+
+local function _push_span(_y, _min, _max)
+	if g_spans[_y] then
+		g_spans[_y][1] = math.min(g_spans[_y][1], math.floor(_min)) 
+		g_spans[_y][2] = math.max(g_spans[_y][2], math.floor(_max))
+	else
+		g_spans[_y] = { math.floor(_max), math.floor(_max) }
+	end
+end
+
+local function _push_span_tri(_p1, _p2, _p3)
+	local min = vec2(math.min(_p1.X, _p2.X, _p3.X), math.min(_p1.Y, _p2.Y, _p3.Y))
+	local max = vec2(math.max(_p1.X, _p2.X, _p3.X), math.max(_p1.Y, _p2.Y, _p3.Y))
+	
+	for y = math.floor(min.Y), math.floor(max.Y) do
+		_push_span(y, min.X+1, max.X+1)
+	end
 end
 
 local function _push_cmd_draw(_func, _depth, ...)
@@ -500,7 +504,12 @@ local function clip_and_raster_triangle(
 				rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z),
 				_shader_input
 			)
-		
+
+			_push_span_tri(
+				rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
+				rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
+				rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z)
+			)
 		end
 	end
 end
