@@ -1,3 +1,5 @@
+require "RetroGadgets.pixeldata"
+
 local methods = {}
 local meta = {__index = methods}
 
@@ -5,10 +7,14 @@ function methods:IsValid()
     return self._Image ~= nil
 end
 
+function methods:GetPixelData()
+    return _pixeldata(self.Width, self.Height, love.image.newImageData(self.Name))
+end
+
 function _G._spritesheet(_name,_image,_w,_h)
     local r,m = pcall(require, _name:match("(.+)%..+") )
     return setmetatable({
-        Name = "",
+        Name = _name,
         Type = "",
         Palette = {},
         _Meta = _name and (r and m or nil) or nil,
