@@ -13,12 +13,7 @@ local vis_renderbuffer = gdt.VideoChip0.RenderBuffers[1]
 local target_renderbuffer = gdt.VideoChip0.RenderBuffers[2]
 local texture_rb = gdt.VideoChip0.RenderBuffers[3]
 
-local penta_R = gdt.ROM.User.SpriteSheets["SS_penta_R.png"]
-local penta_G = gdt.ROM.User.SpriteSheets["SS_penta_G.png"]
-local penta_B = gdt.ROM.User.SpriteSheets["SS_penta_B.png"]
-
 local demo_mesh = {}
-local demo_texture = {}
 local demo_pd = {}
 
 function state_game:on_enter()
@@ -29,36 +24,17 @@ function state_game:on_enter()
 		50    -- far clip
 	)
 	--demo_mesh = rmesh:require_drawlist("kanohi_hau", vec3(0,-0.25,0.2), vec3(0,0,0))
-	demo_mesh = rmesh:require_drawlist("penta", vec3(0,-0.3,0), vec3(0,-35,0))
-	demo_texture = gdt.ROM.User.SpriteSheets["penta_spritesheet.png"]
-	
+	demo_mesh = rmesh:require_drawlist("penta", vec3(0,-0.3,0), vec3(0,-35,0))	
 	engine.camera_pos = vec3(0,0,3.1)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
 	
 	gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height) -- vis buffer
 	gdt.VideoChip0:SetRenderBufferSize(2, gdt.VideoChip0.Width, gdt.VideoChip0.Height) -- target buffer
+	gdt.VideoChip0:SetRenderBufferSize(3, 256, 256) -- mesh texture buffer
 	
-	-- merge RGB buffers
-
-	local channel_r = penta_R:GetPixelData()
-	local channel_g = penta_G:GetPixelData()
-	local channel_b = penta_B:GetPixelData()
-
-	gdt.VideoChip0:SetRenderBufferSize(3, channel_r.Width, channel_r.Height) -- mesh texture buffer
-	
-	local tex_pd = texture_rb:GetPixelData()
-	for y = 1, channel_r.Height do
-		for x = 1, channel_r.Width do
-			tex_pd:SetPixel(x,y, Color(
-				channel_r:GetPixel(x,y).R,
-				channel_g:GetPixel(x,y).G,
-				channel_b:GetPixel(x,y).B
-			))
-		end
-	end
-
-	demo_pd = tex_pd
+	local tex_lua = require "penta_texture"
+	demo_pd = tex_lua:toPixelData(texture_rb:GetPixelData())
 end
 
 function state_game:on_exit()
@@ -102,7 +78,8 @@ function state_game:draw()
 	gdt.VideoChip0:Clear(color.black)
 
 	local model = nil
-	model = rmath:mat4_rotateY(model, gdt.CPU0.Time)
+	--model = rmath:mat4_rotateY(model, gdt.CPU0.Time)
+	
 	rg3d:push_model_matrix(model)
 	local ms_light_dir = rg3d:get_model_space_ligt_dir()
 	
@@ -111,7 +88,12 @@ function state_game:draw()
 	local spans = rg3d:end_render() or {}
 	
 	gdt.VideoChip0:RenderOnBuffer(2)
-	gdt.VideoChip0:Clear(color.gray) -- normal rendering here
+	 -- normal rendering here
+	if engine.IS_RG then
+		gdt.VideoChip0:Clear(color.black)
+	else
+		gdt.VideoChip0:Clear(Color(29,29,29))
+	end
 	gdt.VideoChip0:RenderOnScreen()
 
 	--gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),vis_renderbuffer,vis_renderbuffer.Width,vis_renderbuffer.Height)
@@ -179,7 +161,7 @@ function state_game:draw()
 								
 								local tex_col = demo_pd:GetPixel(tex_uv.X+1, tex_uv.Y+1)
 
-								light = math.max(0.1, rmath:vec3_dot(ms_light_dir, ws_normal))
+								light = 1 -- math.max(0.1, rmath:vec3_dot(ms_light_dir, ws_normal))
 								local frag_color = Color(
 									light * tex_col.R,
 									light * tex_col.G,
