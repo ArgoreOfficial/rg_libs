@@ -225,5 +225,6 @@ function methods:SetPixelData(_pixelData)
 end
 
 function methods:BlitPixelData(_position, _pixelData)
-    rg_unimplemented()
+    local image = love.graphics.newImage(_pixelData._ImageData)
+    love.graphics.draw(image,0,0)
 end
