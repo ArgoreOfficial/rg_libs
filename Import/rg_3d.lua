@@ -106,10 +106,12 @@ function lib:end_render()
 	end
 	
 	g_current_renderpass = nil
-	return {spans=g_spans, top=g_top_span, bottom=g_bottom_span}
+	return { spans=g_spans, top=g_top_span, bottom=g_bottom_span }
 end
 
 local function _push_span(_y, _min, _max)
+	if( _y < 1 ) then return end
+
 	g_top_span    = math.min(g_top_span, _y)
 	g_bottom_span = math.max(g_bottom_span, _y)
 
@@ -124,6 +126,15 @@ end
 local function _push_span_tri(_p1, _p2, _p3)
 	local min = vec2(math.min(_p1.X, _p2.X, _p3.X), math.min(_p1.Y, _p2.Y, _p3.Y))
 	local max = vec2(math.max(_p1.X, _p2.X, _p3.X), math.max(_p1.Y, _p2.Y, _p3.Y))
+	
+	for y = math.floor(min.Y+1), math.floor(max.Y) do
+		_push_span(y, min.X+1, max.X+1)
+	end
+end
+
+local function _push_span_quad(_p1, _p2, _p3, _p4)
+	local min = vec2(math.min(_p1.X, _p2.X, _p3.X, _p4.X), math.min(_p1.Y, _p2.Y, _p3.Y, _p4.Y))
+	local max = vec2(math.max(_p1.X, _p2.X, _p3.X, _p4.X), math.max(_p1.Y, _p2.Y, _p3.Y, _p4.Y))
 	
 	for y = math.floor(min.Y+1), math.floor(max.Y) do
 		_push_span(y, min.X+1, max.X+1)
@@ -541,17 +552,14 @@ local function clip_and_raster_quad(
 	if g_raster_quad_func and left_clip == 4 and right_clip == 4 and top_clip == 4 and bottom_clip == 4 then
 		_shader_input.draw_id = g_draw_id
 		--local depth = (p1.Z + p2.Z + p3.Z + p4.Z)/2
-		local depth = math.min(p1.Z, p2.Z, p3.Z, p4.Z)
-		
-		_push_cmd_draw(
-			g_raster_quad_func, 
-			depth, 
-			rmath:vec3_to_screen(p1, _render_width, _render_height, p1.Z),
-			rmath:vec3_to_screen(p2, _render_width, _render_height, p2.Z),
-			rmath:vec3_to_screen(p3, _render_width, _render_height, p3.Z),
-			rmath:vec3_to_screen(p4, _render_width, _render_height, p4.Z),
-			_shader_input
-		)
+		local depth = math.min(p1.Z, p2.Z, p3.Z, p4.Z)		
+		local s1 = rmath:vec3_to_screen(p1, _render_width, _render_height, p1.Z)
+		local s2 = rmath:vec3_to_screen(p2, _render_width, _render_height, p2.Z)
+		local s3 = rmath:vec3_to_screen(p3, _render_width, _render_height, p3.Z)
+		local s4 = rmath:vec3_to_screen(p4, _render_width, _render_height, p4.Z)
+
+		_push_cmd_draw(g_raster_quad_func, depth, s1, s2, s3, s4, _shader_input)
+		_push_span_quad(s1,s2,s3,s4)
 	else
 		clip_and_raster_triangle({p1,p2,p3}, _render_width, _render_height, nil, nil, nil, nil, _shader_input )
 		clip_and_raster_triangle({p1,p4,p3}, _render_width, _render_height, nil, nil, nil, nil, _shader_input )
@@ -636,11 +644,22 @@ function lib:raster_quad(_quad, _render_width, _render_height, _shader_input)
 	local far_count = count_over_value(-g_far, p1.Z, p2.Z, p3.Z, p4.Z)
 	if far_count == 0 then return end -- in front of far plane
 
+--   p1   p2
+--   +----+
+--   |   /| 
+--   | /  |
+--   +----+
+--   p4   p3
+
 	if near_count == 4 and far_count == 4 then -- quad is fully inside
-		local vs_face_normal = rmath:get_triangle_normal({p1,p2,p4})
-		local dot = rmath:vec3_dot(vs_face_normal, p1)
+		local vs_face_normal_1 = rmath:get_triangle_normal({p1,p2,p4})
+		local vs_face_normal_2 = rmath:get_triangle_normal({p3,p4,p2})
+
+		local dot = math.min( rmath:vec3_dot(vs_face_normal_1, p1), rmath:vec3_dot(vs_face_normal_2, p1) )
 		if dot > 0 then return end
 		
+		local vs_face_normal = (vs_face_normal_1 + vs_face_normal_2) / 2
+
 		local t1 = lib:view_to_clip(p1)
 		local t2 = lib:view_to_clip(p2)
 		local t3 = lib:view_to_clip(p3)

@@ -73,6 +73,10 @@ function lib:round_to_po2(_n)
 	return (math.abs(v - _n) > math.abs(_n - x)) and x or v
 end
 
+function lib:lerp(_a, _b, _t)
+	return _a + (_b - _a) * _t
+end
+
 --------------------------------------------------------
 --[[  Vector 3                                        ]]
 --------------------------------------------------------

@@ -19,9 +19,9 @@ function state_game:on_enter()
 		0.5,  -- near clip
 		50    -- far clip
 	)
-	kanohi_hau = rmesh:require_drawlist("kanohi_hau", vec3(0,-0.4,-3), vec3(0,90,0))
+	kanohi_hau = rmesh:require_drawlist("kanohi_hau", vec3(0,-0.17,0), vec3(0,0,0))
 
-	engine.camera_pos = vec3(0,0,2)
+	engine.camera_pos = vec3(0,0,3)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
 	
@@ -43,14 +43,19 @@ function state_game:draw()
 	if not rb1 then return end
 	if not kanohi_hau then return end
 
-	rg3d:set_light_dir(vec3(1,0,0))
+	rg3d:set_light_dir(vec3(
+		math.cos(gdt.CPU0.Time),
+		0,
+		math.sin(gdt.CPU0.Time)
+	))
 
 	rshaders:use_funcs("draw_id")
 
 	gdt.VideoChip0:RenderOnBuffer(1)
 	gdt.VideoChip0:Clear(color.black)
+	rg3d:push_model_matrix(nil)
+	
 	rg3d:begin_render()
-		rg3d:push_model_matrix(nil)
 		rmesh:drawlist_submit(kanohi_hau)
 	local spans = rg3d:end_render() or {}
 	
@@ -62,35 +67,47 @@ function state_game:draw()
 	local pixel = nil
 	local shader_input = nil
 	local light_col = 1
+	local p1,p2,p3,p4
 
-	local DEBUG = 1
+	local DEBUG = 0
 	if engine.IS_RG then
 		DEBUG = gdt.Switch0.State and 1 or 0
 	end
 
 	for y = spans.top, spans.bottom do
-		if spans.spans[y] then
-			for x = spans.spans[y][1], spans.spans[y][2] do
-				if DEBUG == 1 then
-					pixel = pd:GetPixel(x,y)
-					if pixel.R + pixel.G + pixel.B == 0 then
-						pd:SetPixel(x,y, color.white)
-					end
-				else
-					pixel = pd:GetPixel(x,y)
-					index = bit32.bor(
-						pixel.R,
-						bit32.lshift(pixel.G,8),
-						bit32.lshift(pixel.B,16))
-		
-					if index > 0 then 
-						shader_input = rg3d:get_draw_call(index).args[4]
-						light_col = shader_input.light_intensity or 1
-						pd:SetPixel(x,y, Color(
-							shader_input.color.R * light_col,
-							shader_input.color.G * light_col,
-							shader_input.color.B * light_col
-						))
+		if y > 0 and y <= pd.Height then
+			if spans.spans[y] then
+				for x = spans.spans[y][1], spans.spans[y][2] do
+					if x > 0 and x <= pd.Width then
+						if DEBUG == 1 then
+							pixel = pd:GetPixel(x,y)
+							pd:SetPixel(x,y, Color(
+								rmath:lerp(pixel.R, 255, 0.5), 
+								rmath:lerp(pixel.G, 255, 0.5), 
+								rmath:lerp(pixel.B, 255, 0.5)
+							))					
+						else
+							pixel = pd:GetPixel(x,y)
+							index = bit32.bor(
+								pixel.R,
+								bit32.lshift(pixel.G,8),
+								bit32.lshift(pixel.B,16))
+				
+							if index > 0 then 
+								p1 = rg3d:get_draw_call(index).args[1] 
+								p2 = rg3d:get_draw_call(index).args[2] 
+								p3 = rg3d:get_draw_call(index).args[3] 
+								p4 = rg3d:get_draw_call(index).args[4] -- position 4 (quad) OR shader input (triangle)
+								shader_input = rg3d:get_draw_call(index).args[5] or p4
+
+								light_col = shader_input.light_intensity or 1
+								pd:SetPixel(x,y, Color(
+									shader_input.color.R * light_col,
+									shader_input.color.G * light_col,
+									shader_input.color.B * light_col
+								))
+							end
+						end
 					end
 				end
 			end
