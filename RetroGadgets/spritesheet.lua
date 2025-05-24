@@ -8,7 +8,7 @@ function methods:IsValid()
 end
 
 function methods:GetPixelData()
-    return _pixeldata(self.Width, self.Height, love.image.newImageData(self.Name))
+    return _pixeldata(self._Image:getWidth(), self._Image:getHeight(), love.image.newImageData(self.Name))
 end
 
 function _G._spritesheet(_name,_image,_w,_h)

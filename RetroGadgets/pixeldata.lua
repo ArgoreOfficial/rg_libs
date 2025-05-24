@@ -2,7 +2,14 @@ local methods = {}
 local meta = {__index = methods}
 
 function methods:GetPixel(_x,_y)
-	local r, g, b, a = self._ImageData:getPixel(_x-1, _y-1)
+    if _x <= 0 or _y <= 0 or _x > self.Width or _y > self.Height then
+        error("out of range: " .. _x .. "," .. _y)
+    end
+
+    local x = math.max(0, math.min(_x-1, self.Width-1))
+    local y = math.max(0, math.min(_y-1, self.Height-1))
+
+	local r, g, b, a = self._ImageData:getPixel(x,y)
     return ColorRGBA(r*255, g*255, b*255, a*255)
 end
 

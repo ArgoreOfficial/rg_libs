@@ -195,12 +195,8 @@ end
 function lib:push_model_matrix(_model)
 	g_model_view_mat = rmath:mat4_mult_mat4(_model, g_view_mat) 
 	
-	if _model then
-		g_model_mat_trans_inv   = rmath:mat3_transposed_inverse(_model)
-		g_model_space_light_dir = rmath:vec3_normalize(rmath:mat3_mult_vec3(g_model_mat_trans_inv, g_light_dir))
-	else
-		g_model_space_light_dir = g_light_dir
-	end
+	g_model_mat_trans_inv   = rmath:mat3_transposed_inverse(_model or rmath:mat4())
+	g_model_space_light_dir = rmath:vec3_normalize(rmath:mat3_mult_vec3(g_model_mat_trans_inv, g_light_dir))
 end
 
 function lib:get_model_space_ligt_dir()

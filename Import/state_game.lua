@@ -11,7 +11,15 @@ local FPS = 0
 
 local vis_renderbuffer = gdt.VideoChip0.RenderBuffers[1]
 local target_renderbuffer = gdt.VideoChip0.RenderBuffers[2]
-local kanohi_hau = nil
+local texture_rb = gdt.VideoChip0.RenderBuffers[3]
+
+local penta_R = gdt.ROM.User.SpriteSheets["SS_penta_R.png"]
+local penta_G = gdt.ROM.User.SpriteSheets["SS_penta_G.png"]
+local penta_B = gdt.ROM.User.SpriteSheets["SS_penta_B.png"]
+
+local demo_mesh = {}
+local demo_texture = {}
+local demo_pd = {}
 
 function state_game:on_enter()
 	rg3d:push_perspective(
@@ -20,14 +28,37 @@ function state_game:on_enter()
 		0.5,  -- near clip
 		50    -- far clip
 	)
-	kanohi_hau = rmesh:require_drawlist("kanohi_hau", vec3(0,-0.25,0.2), vec3(0,0,0))
-
-	engine.camera_pos = vec3(0,0,3)
+	--demo_mesh = rmesh:require_drawlist("kanohi_hau", vec3(0,-0.25,0.2), vec3(0,0,0))
+	demo_mesh = rmesh:require_drawlist("penta", vec3(0,-0.3,0), vec3(0,-35,0))
+	demo_texture = gdt.ROM.User.SpriteSheets["penta_spritesheet.png"]
+	
+	engine.camera_pos = vec3(0,0,3.1)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
 	
 	gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height) -- vis buffer
 	gdt.VideoChip0:SetRenderBufferSize(2, gdt.VideoChip0.Width, gdt.VideoChip0.Height) -- target buffer
+	
+	-- merge RGB buffers
+
+	local channel_r = penta_R:GetPixelData()
+	local channel_g = penta_G:GetPixelData()
+	local channel_b = penta_B:GetPixelData()
+
+	gdt.VideoChip0:SetRenderBufferSize(3, channel_r.Width, channel_r.Height) -- mesh texture buffer
+	
+	local tex_pd = texture_rb:GetPixelData()
+	for y = 1, channel_r.Height do
+		for x = 1, channel_r.Width do
+			tex_pd:SetPixel(x,y, Color(
+				channel_r:GetPixel(x,y).R,
+				channel_g:GetPixel(x,y).G,
+				channel_b:GetPixel(x,y).B
+			))
+		end
+	end
+
+	demo_pd = tex_pd
 end
 
 function state_game:on_exit()
@@ -63,9 +94,7 @@ local function barycentric_lerp(_a,_b,_c, _u,_v,_w)
 end
 
 function state_game:draw()
-	if not kanohi_hau then return end
-
-	rg3d:set_light_dir(vec3(-1,0,0))
+	rg3d:set_light_dir(vec3(0,-1,-1))
 
 	rshaders:use_funcs("draw_id")
 
@@ -74,17 +103,15 @@ function state_game:draw()
 
 	local model = nil
 	model = rmath:mat4_rotateY(model, gdt.CPU0.Time)
-	model = rmath:mat4_rotateX(model, gdt.CPU0.Time*0.7)
-	model = rmath:mat4_rotateZ(model, gdt.CPU0.Time*1.3)
 	rg3d:push_model_matrix(model)
 	local ms_light_dir = rg3d:get_model_space_ligt_dir()
 	
 	rg3d:begin_render()
-		rmesh:drawlist_submit(kanohi_hau)
+		rmesh:drawlist_submit(demo_mesh)
 	local spans = rg3d:end_render() or {}
 	
 	gdt.VideoChip0:RenderOnBuffer(2)
-	gdt.VideoChip0:Clear(color.blue) -- normal rendering here
+	gdt.VideoChip0:Clear(color.gray) -- normal rendering here
 	gdt.VideoChip0:RenderOnScreen()
 
 	--gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),vis_renderbuffer,vis_renderbuffer.Width,vis_renderbuffer.Height)
@@ -94,7 +121,7 @@ function state_game:draw()
 	local index = 0
 	local pixel = nil
 	local shader_input = nil
-	local light_col = 1
+	local light = 1
 	local p1,p2,p3,p4
 
 	local DEBUG = 0
@@ -110,7 +137,9 @@ function state_game:draw()
 						pixel = vis_pd:GetPixel(x,y)
 						if DEBUG == 1 then
 							if pixel.R + pixel.G + pixel.B == 0 then
-								target_pd:SetPixel(x,y,color.white)		
+								target_pd:SetPixel(x,y,color.white)	
+							else
+								target_pd:SetPixel(x,y,color.black)	
 							end
 						elseif DEBUG == 2 then
 							target_pd:SetPixel(x,y, Color(
@@ -139,14 +168,25 @@ function state_game:draw()
 									u,v,w 
 								)
 								
-								-- light_col =  shader_input.light_intensity or 1
-								light_col = math.max(0.1, rmath:vec3_dot(ms_light_dir, ws_normal))
+								local tex_uv = barycentric_lerp(
+									shader_input.texcoords[1], 
+									shader_input.texcoords[2], 
+									shader_input.texcoords[3],  
+									u,v,w )
+								
+								tex_uv = vec2((tex_uv.X % 1) * demo_pd.Width, (tex_uv.Y % 1) * demo_pd.Height)
+								tex_uv = vec2(math.floor(tex_uv.X % demo_pd.Width), math.floor(tex_uv.Y % demo_pd.Width))
+								
+								local tex_col = demo_pd:GetPixel(tex_uv.X+1, tex_uv.Y+1)
 
-								target_pd:SetPixel(x,y, Color(
-									shader_input.color.R * light_col,
-									shader_input.color.G * light_col,
-									shader_input.color.B * light_col
-								))
+								light = math.max(0.1, rmath:vec3_dot(ms_light_dir, ws_normal))
+								local frag_color = Color(
+									light * tex_col.R,
+									light * tex_col.G,
+									light * tex_col.B
+								)
+
+								target_pd:SetPixel(x,y, frag_color)
 							end
 						end
 					end

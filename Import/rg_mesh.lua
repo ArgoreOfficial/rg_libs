@@ -10,6 +10,10 @@ local function _extract_vec3(_t, _offset)
 	return vec3(_t[_offset+1],_t[_offset+2],_t[_offset+3])
 end
 
+local function _extract_vec2(_t, _offset)
+	return vec2(_t[_offset+1],-_t[_offset+2])
+end
+
 function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 	local command_list = {}
 	local COL = 1
@@ -22,30 +26,30 @@ function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 		
 		local command = nil
 		local face = {
-			_extract_vec3(m[POS], 0),
-			_extract_vec3(m[POS], 3),
-			_extract_vec3(m[POS], 6)
+			_extract_vec3(m.p, 0),
+			_extract_vec3(m.p, 3),
+			_extract_vec3(m.p, 6)
 		}
 		
-		local model_space_verts = {
-			_extract_vec3(m[POS], 0),
-			_extract_vec3(m[POS], 3),
-			_extract_vec3(m[POS], 6)
+		local vertex_normals = {
+			_extract_vec3(m.n, 0),
+			_extract_vec3(m.n, 3),
+			_extract_vec3(m.n, 6)
 		}
 
-		local vertex_normals = {
-			_extract_vec3(m[NORM], 0),
-			_extract_vec3(m[NORM], 3),
-			_extract_vec3(m[NORM], 6)
+		local uvs = {
+			_extract_vec2(m.uv, 0),
+			_extract_vec2(m.uv, 2),
+			_extract_vec2(m.uv, 4),
 		}
 		
 		local func = rg3d.raster_triangle
 		
-		if m[POS+9] then -- if not nil, face is a quad
+		if m.p[10] then -- if not nil, face is a quad
 			func = rg3d.raster_quad
-			table.insert(face, _extract_vec3(m[POS], 9))
-			table.insert(model_space_verts, _extract_vec3(m[POS], 9))
-			table.insert(vertex_normals, _extract_vec3(m[NORM], 9))
+			table.insert(face, _extract_vec3(m.p, 9))
+			table.insert(vertex_normals, _extract_vec3(m.n, 9))
+			table.insert(uvs, _extract_vec2(m.uv, 6))
 		end
 		
 		if _pos or _rot or _scale then
@@ -59,7 +63,8 @@ function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 			primitive_index = i,
 			color = col,
 			normal = rmath:get_triangle_normal(face),
-			vertex_normals = vertex_normals
+			vertex_normals = vertex_normals,
+			texcoords = uvs
 		}}}
 		table.insert(command_list, command)
 	end

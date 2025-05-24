@@ -4,12 +4,22 @@ def float2string(x, p):
     return ('%.*f' % (p, x)).rstrip('0').rstrip('.')
 
 def write_faces(polygons, obj):
-    faces = obj.data.polygons[:]
-    verts = obj.data.vertices[:]
+    me = obj.data
+    
+    verts = me.vertices
+    uv_layer = me.uv_layers.active.data
     materials = [i.material for i in obj.material_slots]
-    for f in faces:
+    
+    for f in me.polygons:
+        print("Polygon index: {:d}, length: {:d}".format(f.index, f.loop_total))
+        
         v = []
         n = []
+        uv = []
+        for loop_index in range(f.loop_start, f.loop_start + f.loop_total):
+            uv.append(uv_layer[loop_index].uv.x)
+            uv.append(uv_layer[loop_index].uv.y)
+        
         for i in f.vertices:
             # position
             v.append(verts[i].co[0])
@@ -32,10 +42,10 @@ def write_faces(polygons, obj):
         rgb = tuple(round(255*i**(1.0/2.2)) for i in c) 
         
         face_str = '{'
-        # face_str += '255,0,0,  '
         face_str += '%d,%d,%d, ' % rgb
-        face_str += "{" + ','.join(float2string(i, 2) for i in v) + "}, "
-        face_str += "{" + ','.join(float2string(i, 2) for i in n) + "}"
+        face_str += "p={" + ','.join(float2string(i, 2) for i in v) + "}, "
+        face_str += "n={" + ','.join(float2string(i, 2) for i in n) + "}, "
+        face_str += "uv={" + ','.join(float2string(i, 2) for i in uv) + "}, "
         face_str += '}'
         polygons.append(face_str)
 
