@@ -4,6 +4,8 @@ local rmath = require "rg_math"
 local rg3d = require "rg_3d"
 --local rinput = require "rg_input"
 
+engine.IS_RG = _VERSION == "Luau"
+
 engine.rinput = {}
 engine.camera_pos = vec3(0,0,0)
 engine.camera_pitch = 0

@@ -64,16 +64,18 @@ function state_game:draw()
 	local light_col = 1
 
 	local DEBUG = 1
+	if engine.IS_RG then
+		DEBUG = gdt.Switch0.State and 1 or 0
+	end
 
-	local span_min, span_max
 	for y = spans.top, spans.bottom do
 		if spans.spans[y] then
-			span_min = spans.spans[y][1]
-			span_max = spans.spans[y][2]
-	
-			for x = span_min, span_max do
+			for x = spans.spans[y][1], spans.spans[y][2] do
 				if DEBUG == 1 then
-					pd:SetPixel(x,y, color.white)
+					pixel = pd:GetPixel(x,y)
+					if pixel.R + pixel.G + pixel.B == 0 then
+						pd:SetPixel(x,y, color.white)
+					end
 				else
 					pixel = pd:GetPixel(x,y)
 					index = bit32.bor(

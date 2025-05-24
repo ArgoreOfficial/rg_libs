@@ -117,7 +117,7 @@ local function _push_span(_y, _min, _max)
 		g_spans[_y][1] = math.min(g_spans[_y][1], math.floor(_min)) 
 		g_spans[_y][2] = math.max(g_spans[_y][2], math.floor(_max))
 	else
-		g_spans[_y] = { math.floor(_max), math.floor(_max) }
+		g_spans[_y] = { math.floor(_min), math.floor(_max) }
 	end
 end
 
@@ -125,7 +125,7 @@ local function _push_span_tri(_p1, _p2, _p3)
 	local min = vec2(math.min(_p1.X, _p2.X, _p3.X), math.min(_p1.Y, _p2.Y, _p3.Y))
 	local max = vec2(math.max(_p1.X, _p2.X, _p3.X), math.max(_p1.Y, _p2.Y, _p3.Y))
 	
-	for y = math.floor(min.Y), math.floor(max.Y) do
+	for y = math.floor(min.Y+1), math.floor(max.Y) do
 		_push_span(y, min.X+1, max.X+1)
 	end
 end
@@ -492,6 +492,8 @@ local function clip_and_raster_triangle(
 		clip_triangles({triangle}, draw_list)
 	end
 
+	local s1, s2, s3
+
 	for i=1, #draw_list do
 		if g_raster_tri_func then 
 			if not g_current_renderpass then
@@ -502,20 +504,11 @@ local function clip_and_raster_triangle(
 			local depth = math.min(draw_list[i][1].Z,draw_list[i][2].Z,draw_list[i][3].Z)
 		
 			_shader_input.draw_id = g_draw_id
-			_push_cmd_draw(
-				g_raster_tri_func, 
-				depth, 
-				rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
-				rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
-				rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z),
-				_shader_input
-			)
-
-			_push_span_tri(
-				rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z),
-				rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z),
-				rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z)
-			)
+			s1 = rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z)
+			s2 = rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z)
+			s3 = rmath:vec3_to_screen(draw_list[i][3], _render_width, _render_height, draw_list[i][3].Z)
+			_push_cmd_draw(g_raster_tri_func, depth, s1, s2, s3, _shader_input)
+			_push_span_tri(s1, s2, s3)
 		end
 	end
 end
