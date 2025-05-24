@@ -6,10 +6,15 @@ local rmath = require "rg_math"
 local screen_width  = gdt.VideoChip0.Width
 local screen_height = gdt.VideoChip0.Height
 
+local function _extract_vec3(_t, _offset)
+	return vec3(_t[_offset+1],_t[_offset+2],_t[_offset+3])
+end
+
 function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 	local command_list = {}
 	local COL = 1
 	local POS = 4
+	local NORM = 5
 	
 	for i = 1, #_mesh do
 		local m = _mesh[i]
@@ -17,16 +22,23 @@ function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 		
 		local command = nil
 		local face = {
-			vec3(m[POS+0],m[POS+1],m[POS+2]),
-			vec3(m[POS+3],m[POS+4],m[POS+5]),
-			vec3(m[POS+6],m[POS+7],m[POS+8])
+			_extract_vec3(m[POS], 0),
+			_extract_vec3(m[POS], 3),
+			_extract_vec3(m[POS], 6)
+		}
+
+		local vertex_normals = {
+			_extract_vec3(m[NORM], 0),
+			_extract_vec3(m[NORM], 3),
+			_extract_vec3(m[NORM], 6)
 		}
 		
 		local func = rg3d.raster_triangle
 		
 		if m[POS+9] then -- if not nil, face is a quad
 			func = rg3d.raster_quad
-			table.insert(face, vec3(m[POS+9],m[POS+10],m[POS+11]))
+			table.insert(face, _extract_vec3(m[POS], 9))
+			table.insert(vertex_normals, _extract_vec3(m[NORM], 9))
 		end
 		
 		if _pos or _rot or _scale then
@@ -39,7 +51,8 @@ function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 		command = {func, {face, screen_width, screen_height, {
 			primitive_index = i,
 			color = col,
-			normal = rmath:get_triangle_normal(face)
+			normal = rmath:get_triangle_normal(face),
+			vertex_normals = vertex_normals
 		}}}
 		table.insert(command_list, command)
 	end

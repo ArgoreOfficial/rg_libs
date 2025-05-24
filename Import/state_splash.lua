@@ -6,9 +6,9 @@ local rg3d  = require "rg_3d"
 local engine = require "engine"
 local state_machine = require("state_machine")
 
-local logo_drawlist      = rmesh:require_drawlist "argore_logo"
-local logo_face_drawlist = rmesh:require_drawlist "argore_logo_face"
-local bg_drawlist        = rmesh:require_drawlist "argore_bg"
+local logo_drawlist      = nil
+local logo_face_drawlist = nil
+local bg_drawlist        = nil
 
 local camera_path = require "camera_path"
 
@@ -21,6 +21,10 @@ function state:on_enter()
 		0.5,  -- near clip
 		50    -- far clip
 	)
+
+	logo_drawlist      = rmesh:require_drawlist "argore_logo"
+	logo_face_drawlist = rmesh:require_drawlist "argore_logo_face"
+	bg_drawlist        = rmesh:require_drawlist "argore_bg"
 end
 
 function state:on_exit()

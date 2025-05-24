@@ -127,7 +127,7 @@ local function _push_span_tri(_p1, _p2, _p3)
 	local min = vec2(math.min(_p1.X, _p2.X, _p3.X), math.min(_p1.Y, _p2.Y, _p3.Y))
 	local max = vec2(math.max(_p1.X, _p2.X, _p3.X), math.max(_p1.Y, _p2.Y, _p3.Y))
 	
-	for y = math.floor(min.Y+1), math.floor(max.Y) do
+	for y = math.floor(min.Y+1), math.floor(max.Y+1) do
 		_push_span(y, min.X+1, max.X+1)
 	end
 end

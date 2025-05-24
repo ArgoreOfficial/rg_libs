@@ -9,10 +9,16 @@ def write_faces(polygons, obj):
     materials = [i.material for i in obj.material_slots]
     for f in faces:
         v = []
+        n = []
         for i in f.vertices:
+            # position
             v.append(verts[i].co[0])
             v.append(verts[i].co[2])
             v.append(-verts[i].co[1])
+            # normal
+            n.append(verts[i].normal[0])
+            n.append(verts[i].normal[2])
+            n.append(-verts[i].normal[1])
         
         c = (1.0,1.0,1.0)
         if f.material_index >= 0:
@@ -28,7 +34,8 @@ def write_faces(polygons, obj):
         face_str = '{'
         # face_str += '255,0,0,  '
         face_str += '%d,%d,%d, ' % rgb
-        face_str += ','.join(float2string(i, 2) for i in v)
+        face_str += "{" + ','.join(float2string(i, 2) for i in v) + "}, "
+        face_str += "{" + ','.join(float2string(i, 2) for i in n) + "}"
         face_str += '}'
         polygons.append(face_str)
 
@@ -68,7 +75,7 @@ class ExportSomeData(Operator, ExportHelper):
     filename_ext = ".lua"
 
     filter_glob: StringProperty(
-        default="*.txt",
+        default="*.lua",
         options={'HIDDEN'},
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
