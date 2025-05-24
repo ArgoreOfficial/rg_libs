@@ -28,7 +28,16 @@ local asset_types = {
     ["mp3"] = "AudioSample"
 }
 
-local function _create_romsystem()
+local function _create_rom_system()
+    return { 
+        Assets       = {},
+        SpriteSheets = {},
+        Codes        = {},
+        AudioSamples = {}
+    }
+end
+
+local function _create_rom_user()
     local SpriteSheets = setmetatable({}, rom_spritesheet_meta)
     local Assets = {}
     
@@ -48,7 +57,7 @@ local function _create_romsystem()
     }
 end
 
---ROM.System = _create_romsystem() -- TODO
-ROM.User = _create_romsystem()
+ROM.System = _create_rom_system() 
+ROM.User = _create_rom_user()
 
 return ROM

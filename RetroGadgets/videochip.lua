@@ -155,7 +155,17 @@ function methods:DrawCustomSprite(_position, _spriteSheet, _spriteOffset, _sprit
 end
 
 function methods:DrawText(_position, _fontSprite, _text, _textColor, _backgroundColor)
-    rg_unimplemented()
+    -- TODO: _fontSprite 
+
+    local font   = love.graphics.getFont()
+    local width  = font:getWidth (_text)
+    local height = font:getHeight(_text)
+
+    _set_color(_backgroundColor)
+    love.graphics.rectangle("fill", _position.X, _position.Y, width, height)
+    _set_color(_textColor)
+    love.graphics.print(_text, _position.X, _position.Y)
+    _reset_color()
 end
 
 function methods:RasterSprite(_position1, _position2, _position3, _position4, _spriteSheet, _spriteX, _spriteY, _tintColor, _backgroundColor)
