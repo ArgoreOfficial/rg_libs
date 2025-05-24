@@ -15,7 +15,7 @@ def write_faces(polygons, obj):
             v.append(-verts[i].co[1])
         
         c = (1.0,1.0,1.0)
-        if f.material_index >= 1:
+        if f.material_index >= 0:
             mat = materials[f.material_index]
             nodes = [i.type for i in mat.node_tree.nodes]
             if 'RGB' in nodes:
