@@ -37,24 +37,6 @@ function state_game:update(_delta_time)
 	else FPS = 1 / _delta_time end
 end
 
-local function renderbuffer_shader(_p1,_p2,_p3,_p4,_shader_input)
-	gdt.VideoChip0:RasterRenderBuffer(_p4,_p3,_p2,_p1,rb1)
-end
-
-local function draw_simple_quad()
-	rg3d:raster_quad(
-		{
-			vec3(0,0,0),
-			vec3(1,0,0),
-			vec3(1,1,0),
-			vec3(0,1,0)
-		},
-		gdt.VideoChip0.Width, 
-		gdt.VideoChip0.Height,
-		{color=color.blue}
-	)
-end
-
 local font = gdt.ROM.System.SpriteSheets["StandardFont"]
 
 function state_game:draw()
@@ -70,7 +52,7 @@ function state_game:draw()
 	rg3d:begin_render()
 		rg3d:push_model_matrix(nil)
 		rmesh:drawlist_submit(kanohi_hau)
-	local bounds = rg3d:end_render() or {}
+	local spans = rg3d:end_render() or {}
 	
 	gdt.VideoChip0:RenderOnScreen()
 	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),rb1,rb1.Width,rb1.Height)
@@ -81,8 +63,8 @@ function state_game:draw()
 	local shader_input = nil
 	local light_col = 1
 
-	for y=bounds.min.Y, bounds.max.Y do
-		for x=bounds.min.X, bounds.max.X do 
+	for y, span in pairs(spans) do
+		for x = span[1], span[2] do
 			pixel = pd:GetPixel(x,y)
 			index = bit32.bor(
 				pixel.R,
@@ -101,8 +83,8 @@ function state_game:draw()
 		end
 	end
 
+
 	gdt.VideoChip0:BlitPixelData(vec2(0,0), pd)
-	
 end
 
 return state_game

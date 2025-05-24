@@ -93,28 +93,31 @@ function lib:end_render()
 	
 	table.sort(tkeys)
 	local num_drawcalls = 0
+
+	local spans = {}
+
 	local bounds = nil
-	local min_bounds = {1000, 1000}
-	local max_bounds = {0,0}
 	for _, k in ipairs(tkeys) do 
 		bounds = g_current_renderpass[k].func(unpack(g_current_renderpass[k].args))
 
 		if bounds then
-			min_bounds[1] = math.min(min_bounds[1], bounds[1][1]+1)
-			min_bounds[2] = math.min(min_bounds[2], bounds[1][2]+1)
-			
-			max_bounds[1] = math.max(max_bounds[1], bounds[2][1]+1)
-			max_bounds[2] = math.max(max_bounds[2], bounds[2][2]+1)
+			for i = math.floor(bounds.min.Y), math.floor(bounds.max.Y), 1 do
+				if spans[i] then
+					spans[i] = {
+						math.min(spans[i][1], math.floor(bounds.min.X+1)), 
+						math.max(spans[i][2], math.floor(bounds.max.X+1))
+					}
+				else
+					spans[ i ] = {math.floor(bounds.min.X+1), math.floor(bounds.max.X+1)}
+				end
+			end
 		end
 
 		num_drawcalls = num_drawcalls + 1
 	end
 	
 	g_current_renderpass = nil
-	return {
-		min = vec2(table.unpack(min_bounds)),
-		max = vec2(table.unpack(max_bounds))
-	}
+	return spans
 end
 
 local function _push_cmd_draw(_func, _depth, ...)
