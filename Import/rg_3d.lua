@@ -19,8 +19,12 @@ local g_far = 50
 local g_eye     = vec3(0,0,0)
 local g_eye_dir = vec3(0,0,1)
 local g_view_mat = {}
+local g_view_mat_trans_inv = {}
 local g_model_view_mat = rmath:mat4()
 local g_debug_texture = gdt.ROM.User.SpriteSheets["debug.png"]
+
+local g_view_space_light_dir = vec3(0,0,0)
+local g_light_dir = vec3(0,1,0)
 
 local g_raster_tri_func  = nil
 local g_raster_quad_func = nil
@@ -116,6 +120,9 @@ function lib:push_look_at(_eye, _center, _up)
 	g_eye = _eye
 	g_view_mat = rmath:mat4_look_at(_eye, _center, _up)
 	g_model_view_mat = g_view_mat
+
+	g_view_mat_trans_inv = rmath:mat3_transpose(rmath:mat3_inverse(g_view_mat))
+    g_view_space_light_dir = rmath:vec3_normalize(rmath:mat3_mult_vec3(g_view_mat_trans_inv, g_light_dir))
 end
 
 function lib:push_perspective( _aspect, _fov, _near, _far )
@@ -545,7 +552,8 @@ function lib:raster_triangle(_tri, _render_width, _render_height, _shader_input)
 	local nearclipped = {}
 	local farclipped  = {}
 
-	local dot = rmath:vec3_dot(rmath:get_triangle_normal({p1,p2,p3}), p1)
+	local vs_face_normal = rmath:get_triangle_normal({p1,p2,p3})
+	local dot = rmath:vec3_dot(vs_face_normal, p1)
 	if dot > 0 then return end
 	
 	-- clip near plane
@@ -566,6 +574,8 @@ function lib:raster_triangle(_tri, _render_width, _render_height, _shader_input)
 	for i = 1, #farclipped do
 		local t = {}
 	
+		_shader_input.light_intensity = rmath:vec3_dot(g_view_space_light_dir, rmath:vec3_normalize(vs_face_normal))
+		
 		t[1] = lib:view_to_clip(farclipped[i][1])
 		t[2] = lib:view_to_clip(farclipped[i][2])
 		t[3] = lib:view_to_clip(farclipped[i][3])
@@ -588,13 +598,16 @@ function lib:raster_quad(_quad, _render_width, _render_height, _shader_input)
 	if far_count == 0 then return end -- in front of far plane
 
 	if near_count == 4 and far_count == 4 then -- quad is fully inside
-		local dot = rmath:vec3_dot(rmath:get_triangle_normal({p1,p2,p4}), p1)
+		local vs_face_normal = rmath:get_triangle_normal({p1,p2,p4})
+		local dot = rmath:vec3_dot(vs_face_normal, p1)
 		if dot > 0 then return end
 		
 		local t1 = lib:view_to_clip(p1)
 		local t2 = lib:view_to_clip(p2)
 		local t3 = lib:view_to_clip(p3)
 		local t4 = lib:view_to_clip(p4)
+
+		_shader_input.light_intensity = rmath:vec3_dot(g_view_space_light_dir, rmath:vec3_normalize(vs_face_normal))
 		
 		clip_and_raster_quad({t1,t2,t3,t4}, _render_width, _render_height, nil, nil, nil, nil, _shader_input)
 	else

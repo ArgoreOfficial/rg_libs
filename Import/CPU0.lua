@@ -32,10 +32,6 @@ state_machine:set_state("menu")
 local shading = gdt.ROM.User.SpriteSheets["shading_cross.png"]
 --local rg_tex  = gdt.ROM.User.SpriteSheets["rg_logo.png"]
 
-gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
--- this has to be grabbed after because of love2d stuff
-local rb1 = gdt.VideoChip0.RenderBuffers[1]
-
 function eventChannel1(_sender,_event)
 	engine.rinput[_event.InputName] = _event.ButtonDown
 end
@@ -89,18 +85,6 @@ local function raster_tri_sprite(_p1,_p2,_p3)
 	gdt.VideoChip0:DrawTriangle(_p1,_p2,_p3,color.green)
 end
 
-local function shader_quad_random(_p1,_p2,_p3,_p4,_shader_input)		
-	math.randomseed( _shader_input.primitive_index )
-	local color = Color(math.random(0,255),math.random(0,255),math.random(0,255))
-	FillQuad(_p1, _p2, _p3, _p4, color)
-end
-
-local function shader_tri_random(_p1,_p2,_p3,_shader_input)		
-	math.randomseed( _shader_input.primitive_index )
-	local color = Color(math.random(0,255),math.random(0,255),math.random(0,255))
-	gdt.VideoChip0:FillTriangle(_p1,_p2,_p3,color)
-end
-
 local function shader_quad_basic(_p1,_p2,_p3,_p4,_shader_input)		
 	FillQuad(_p1, _p2, _p3, _p4, _shader_input.color or color.white)
 end
@@ -114,9 +98,6 @@ end
 function update()
 	local dt = gdt.CPU0.DeltaTime
 	
-	
-	gdt.VideoChip0:RenderOnBuffer(1)
-	
 	engine:update(dt)
 	state_machine:update(dt)
 	engine:post_update(dt)
@@ -124,9 +105,4 @@ function update()
 	rg3d:push_look_at(engine.camera_pos, engine.camera_pos + engine.camera_dir, vec3(0,1,0))
 	
 	state_machine:draw()
-	
-	gdt.VideoChip0:RenderOnScreen()
-	gdt.VideoChip0:Clear(color.black)
-
-	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),rb1,rb1.Width,rb1.Height)
 end

@@ -41,6 +41,9 @@ function love.load()
 	love.graphics.setLineStyle("rough") 
 	love.graphics.setLineWidth(1) 
 	
+	--local main_font = love.graphics.newFont(6, "mono")
+	--love.graphics.setFont(main_font)
+
 	gdt.VideoChip0:RenderOnScreen()
 	dofile( "Import/CPU0.lua" )
 	love.graphics.setCanvas()

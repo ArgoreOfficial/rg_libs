@@ -214,6 +214,28 @@ function lib:vec4_to_screen(_vec,_width,_height)
 end
 
 --------------------------------------------------------
+--[[  Matrix                                          ]]
+--------------------------------------------------------
+
+local function _matrix_at(_row,_col)
+    return "m" .. tostring(_row) .. tostring(_col)
+end
+
+local function _matrix_generic_mult(_a, _b)
+    local res = lib:mat4()
+    for row = 1, 4 do
+        for col = 1, 4 do
+            local v = 0
+            for inner = 1, 4 do
+                v = v + _a[_matrix_at(row, inner)] * _b[_matrix_at(inner, col)]
+            end
+            res[_matrix_at(row, col)] = v
+        end
+    end
+    return res
+end
+
+--------------------------------------------------------
 --[[  Matrix 3x3                                      ]]
 --------------------------------------------------------
 
@@ -223,6 +245,12 @@ function lib:mat3x3(_00, _01, _02, _10, _11, _12, _20, _21, _22 )
         m10 = _10 or 0, m11 = _11 or 1, m12 = _12 or 0,
         m20 = _20 or 0, m21 = _21 or 0, m22 = _22 or 1
     }
+end
+
+function lib:mat3_print(_mat)
+    print(_mat.m00, _mat.m01, _mat.m02, _mat.m03)
+    print(_mat.m10, _mat.m11, _mat.m12, _mat.m13)
+    print(_mat.m20, _mat.m21, _mat.m22, _mat.m23)
 end
 
 function lib:mat3x3_transform( _mat, _vec )
@@ -268,7 +296,24 @@ function lib:mat3x3_mult_mat3x3( _a, _b )
     return res
 end
 
-function lib:mat3x3_inverse(_mat)
+function lib:mat3_mult_vec3(_mat, _vec)
+    local res = {0,0,0}
+    local vec = {_vec.X, _vec.Y, _vec.Z}
+    for i = 0, 2 do
+        for j = 0, 2 do
+            local vthis = vec[j+1]
+            if not vthis then error("no vthis") end
+
+            local mthis = _mat[_matrix_at(i,j)]
+            if not mthis then error("no mthis") end
+
+            res[i+1] = res[i+1] + mthis * vthis
+        end
+    end
+    return vec3(res[1], res[2], res[3])
+end
+
+function lib:mat3_inverse(_mat)
     local ret = lib:mat3x3()
     -- computes the inverse of a matrix m
     local det = _mat.m00 * (_mat.m11 * _mat.m22 - _mat.m21 * _mat.m12) -
@@ -288,6 +333,20 @@ function lib:mat3x3_inverse(_mat)
     ret.m22 = (_mat.m00 * _mat.m11 - _mat.m10 * _mat.m01) * invdet
     
     return ret
+end
+
+function lib:mat3_transpose( _mat )
+    local res = lib:mat3x3()
+
+	-- naive approach
+	-- TODO: unroll
+    for row = 1, 3 do
+        for col = 1, 3 do
+            res[_matrix_at(col, row)] = _mat[_matrix_at(row, col)]
+        end
+    end
+
+	return res
 end
 
 --------------------------------------------------------
@@ -390,6 +449,20 @@ function lib:mat4_inverse( _m )
 	im.m33 = det *  ( _m.m00 * A1212 - _m.m01 * A0212 + _m.m02 * A0112 )
 
 	return im
+end
+
+function lib:mat4_transpose( _mat )
+    local res = lib:mat4()
+
+	-- naive approach
+	-- TODO: unroll
+    for row = 1, 4 do
+        for col = 1, 4 do
+            res[_matrix_at(col, row)] = _mat[_matrix_at(row, col)]
+        end
+    end
+
+	return res
 end
 
 -- https://github.com/ArgoreOfficial/Wyvern/blob/dev/src/engine/wv/math/matrix_core.h#L272
