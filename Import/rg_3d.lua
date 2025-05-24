@@ -35,7 +35,7 @@ local g_current_renderpass = nil
 local g_draws = {}
 local g_draw_id = 1
 local g_spans = {}
-
+local g_span_indices = {} --  : key value pair { y_pos, span_index }
 
 --------------------------------------------------------
 --[[  Pipeline State Functions                        ]]
@@ -81,7 +81,8 @@ function lib:begin_render()
 
 	g_current_renderpass = {}
 	g_draw_id = 1
-	--g_spans = {}
+	g_spans = {}
+	g_span_indices = {}
 end
 
 function lib:end_render()
@@ -107,11 +108,13 @@ function lib:end_render()
 end
 
 local function _push_span(_y, _min, _max)
-	if g_spans[_y] then
-		g_spans[_y][1] = math.min(g_spans[_y][1], math.floor(_min)) 
-		g_spans[_y][2] = math.max(g_spans[_y][2], math.floor(_max))
+	local idx = g_span_indices[_y]
+	if idx then
+		g_spans[idx][2] = math.min(g_spans[idx][2], math.floor(_min)) 
+		g_spans[idx][3] = math.max(g_spans[idx][3], math.floor(_max))
 	else
-		g_spans[_y] = { math.floor(_max), math.floor(_max) }
+		g_spans[#g_spans+1] = { _y, math.floor(_max), math.floor(_max) }
+		g_span_indices[_y] = #g_spans
 	end
 end
 

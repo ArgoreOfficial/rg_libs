@@ -65,8 +65,13 @@ function state_game:draw()
 
 	local DEBUG = 0
 
-	for y, span in pairs(spans) do
-		for x = span[1], span[2] do
+	local y, span_min, span_max
+	for i = 1, #spans do
+		y = spans[i][1]
+		span_min = spans[i][2]
+		span_max = spans[i][3]
+
+		for x = span_min, span_max do
 			if DEBUG == 1 then
 				pd:SetPixel(x,y, color.white)
 			else
@@ -88,7 +93,6 @@ function state_game:draw()
 			end
 		end
 	end
-
 
 	gdt.VideoChip0:BlitPixelData(vec2(0,0), pd)
 end
