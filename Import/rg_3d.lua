@@ -18,9 +18,9 @@ local g_far = 50
 
 local g_eye     = vec3(0,0,0)
 local g_eye_dir = vec3(0,0,1)
-local g_view_mat = {}
-local g_view_mat_trans_inv = {}
-local g_model_view_mat = rmath:mat4()
+local g_view_mat = nil
+local g_view_mat_trans_inv = nil
+local g_model_view_mat = nil
 local g_debug_texture = gdt.ROM.User.SpriteSheets["debug.png"]
 
 local g_view_space_light_dir = vec3(0,0,0)
@@ -32,10 +32,11 @@ local g_raster_quad_func = nil
 local g_clip_far = true
 
 local g_current_renderpass = nil
-local g_draw_id = 0
+local g_draws = {}
+local g_draw_id = 1
 
 --------------------------------------------------------
---[[  Default Raster Functions                        ]]
+--[[  Pipeline State Functions                        ]]
 --------------------------------------------------------
 
 local function default_raster_tri(_p1,_p2,_p3)
@@ -58,6 +59,14 @@ function lib:set_clip_far( _bool )
 	g_clip_far = _bool
 end
 
+function lib:set_light_dir(_dir)
+	g_light_dir = rmath:vec3_normalize(-_dir)
+	
+	if g_view_mat_trans_inv then
+		g_view_space_light_dir = rmath:vec3_normalize(rmath:mat3_mult_vec3(g_view_mat_trans_inv, g_light_dir))
+	end
+end
+
 --------------------------------------------------------
 --[[  RenderPasses                                    ]]
 --------------------------------------------------------
@@ -69,7 +78,7 @@ function lib:begin_render()
 	end
 
 	g_current_renderpass = {}
-	g_draw_id = 0
+	g_draw_id = 1
 end
 
 function lib:end_render()
@@ -79,19 +88,33 @@ function lib:end_render()
 	end
 
 	local tkeys = {}
-	
+
 	for k in pairs(g_current_renderpass) do table.insert(tkeys, k) end
 	
 	table.sort(tkeys)
 	local num_drawcalls = 0
+	local bounds = nil
+	local min_bounds = {1000, 1000}
+	local max_bounds = {0,0}
 	for _, k in ipairs(tkeys) do 
-		g_current_renderpass[k].func(unpack(g_current_renderpass[k].args))
+		bounds = g_current_renderpass[k].func(unpack(g_current_renderpass[k].args))
+
+		if bounds then
+			min_bounds[1] = math.min(min_bounds[1], bounds[1][1]+1)
+			min_bounds[2] = math.min(min_bounds[2], bounds[1][2]+1)
+			
+			max_bounds[1] = math.max(max_bounds[1], bounds[2][1]+1)
+			max_bounds[2] = math.max(max_bounds[2], bounds[2][2]+1)
+		end
+
 		num_drawcalls = num_drawcalls + 1
 	end
 	
-	-- print("Drawcalls:", num_drawcalls)
-
 	g_current_renderpass = nil
+	return {
+		min = vec2(table.unpack(min_bounds)),
+		max = vec2(table.unpack(max_bounds))
+	}
 end
 
 local function _push_cmd_draw(_func, _depth, ...)
@@ -109,6 +132,13 @@ local function _push_cmd_draw(_func, _depth, ...)
 		func = _func,
 		args = {...}
 	}
+
+	g_draws[g_draw_id] = g_current_renderpass[_depth]
+	g_draw_id = g_draw_id + 1
+end
+
+function lib:get_draw_call(_index)
+	return g_draws[_index]
 end
 
 --------------------------------------------------------
@@ -458,8 +488,7 @@ local function clip_and_raster_triangle(
 			--local depth = (draw_list[i][1].Z + draw_list[i][2].Z + draw_list[i][3].Z) / 3
 			local depth = math.min(draw_list[i][1].Z,draw_list[i][2].Z,draw_list[i][3].Z)
 		
-			_shader_input.draw_id = g_draw_id + 1
-			g_draw_id = g_draw_id + 1
+			_shader_input.draw_id = g_draw_id
 			_push_cmd_draw(
 				g_raster_tri_func, 
 				depth, 
@@ -499,8 +528,7 @@ local function clip_and_raster_quad(
 	if bottom_clip == 0 then return end
 	
 	if g_raster_quad_func and left_clip == 4 and right_clip == 4 and top_clip == 4 and bottom_clip == 4 then
-		_shader_input.draw_id = g_draw_id + 1
-		g_draw_id = g_draw_id + 1
+		_shader_input.draw_id = g_draw_id
 		--local depth = (p1.Z + p2.Z + p3.Z + p4.Z)/2
 		local depth = math.min(p1.Z, p2.Z, p3.Z, p4.Z)
 		

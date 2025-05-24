@@ -11,9 +11,28 @@ engine.camera_yaw = 0
 engine.camera_dir   = vec3(0,0,-1)
 
 engine.sun_dir = rmath:vec3_normalize(vec3(0,-1,-1))
+engine.average_frametime = 0.0
+
+local font = gdt.ROM.System.SpriteSheets["StandardFont"]
+
+local time_since_frametime_update = 0.0
+local frametimes = {}
 
 function engine:update(_delta_time)
-	-- update
+	time_since_frametime_update = time_since_frametime_update + _delta_time
+
+	if time_since_frametime_update > 0.2 then
+		if #frametimes == 64 then
+			table.remove(frametimes, 1)
+		end
+		frametimes[#frametimes+1] = _delta_time
+
+		engine.average_frametime = 0
+		for i = 1, #frametimes do
+			engine.average_frametime = engine.average_frametime + frametimes[i]
+		end
+		engine.average_frametime = engine.average_frametime / #frametimes
+	end
 end
 
 -- called after update and state:update
@@ -21,9 +40,11 @@ function engine:post_update(_delta_time)
 	engine.camera_pitch = math.min(engine.camera_pitch,  rmath:radians(85))
 	engine.camera_pitch = math.max(engine.camera_pitch, -rmath:radians(85))
 	engine.camera_dir   = rmath:rot_to_dir(engine.camera_pitch, engine.camera_yaw)
+end
 
-	--engine.sun_dir = vec3(math.cos(gdt.CPU0.Time), 0, math.sin(gdt.CPU0.Time))
-	--engine.sun_dir = rmath:vec3_normalize(engine.sun_dir)
+-- called after state:draw
+function engine:draw()
+	gdt.VideoChip0:DrawText(vec2(0,0),font,"FPS: " .. tostring(math.floor(1 / engine.average_frametime)),color.white,color.clear)
 end
 
 return engine

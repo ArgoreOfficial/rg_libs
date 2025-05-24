@@ -7,8 +7,9 @@ local rg3d     = require("rg_3d")
 local rshaders = require("rg_shaders")
 
 local state_machine = require("state_machine")
+local FPS = 0
 
-local rb1 = nil
+local rb1 = gdt.VideoChip0.RenderBuffers[1]
 local kanohi_hau = nil
 
 function state_game:on_enter()
@@ -18,14 +19,13 @@ function state_game:on_enter()
 		0.5,  -- near clip
 		50    -- far clip
 	)
-kanohi_hau = rmesh:require_drawlist("kanohi_hau", vec3(0,-0.4,-3), vec3(0,90,0))
-	
+	kanohi_hau = rmesh:require_drawlist("kanohi_hau", vec3(0,-0.4,-3), vec3(0,90,0))
+
 	engine.camera_pos = vec3(0,0,2)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
 	
-	gdt.VideoChip0:SetRenderBufferSize(1, 200, 150)
-	rb1 = gdt.VideoChip0.RenderBuffers[1]
+	gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
 end
 
 function state_game:on_exit()
@@ -33,7 +33,8 @@ function state_game:on_exit()
 end
 
 function state_game:update(_delta_time)
-	
+	if _delta_time == 0 then FPS = 0 
+	else FPS = 1 / _delta_time end
 end
 
 local function renderbuffer_shader(_p1,_p2,_p3,_p4,_shader_input)
@@ -57,23 +58,51 @@ end
 local font = gdt.ROM.System.SpriteSheets["StandardFont"]
 
 function state_game:draw()
+	if not rb1 then return end
+	if not kanohi_hau then return end
+
+	rg3d:set_light_dir(vec3(1,0,0))
+
+	rshaders:use_funcs("draw_id")
+
 	gdt.VideoChip0:RenderOnBuffer(1)
-	gdt.VideoChip0:Clear(color.red)
-	gdt.VideoChip0:DrawText(vec2(0,0), font, "Some Gaming Thing", color.white, color.black)
-	
-	gdt.VideoChip0:RenderOnScreen()
 	gdt.VideoChip0:Clear(color.black)
-	--gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),rb1,400,300)
-
-	--rg3d:set_light_dir(vec3(1,0,0))
-
-	rg3d:set_quad_func(rshaders.diffuse_lambert_quad)
-	rg3d:set_tri_func(rshaders.diffuse_lambert_tri)
-	
 	rg3d:begin_render()
 		rg3d:push_model_matrix(nil)
 		rmesh:drawlist_submit(kanohi_hau)
-	rg3d:end_render()
+	local bounds = rg3d:end_render() or {}
+	
+	gdt.VideoChip0:RenderOnScreen()
+	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),rb1,rb1.Width,rb1.Height)
+
+	local pd = rb1:GetPixelData()
+	local index = 0
+	local pixel = nil
+	local shader_input = nil
+	local light_col = 1
+
+	for y=bounds.min.Y, bounds.max.Y do
+		for x=bounds.min.X, bounds.max.X do 
+			pixel = pd:GetPixel(x,y)
+			index = bit32.bor(
+				pixel.R,
+				bit32.lshift(pixel.G,8),
+				bit32.lshift(pixel.B,16))
+
+			if index > 0 then 
+				shader_input = rg3d:get_draw_call(index).args[4]
+				light_col = shader_input.light_intensity or 1
+				pd:SetPixel(x,y, Color(
+					shader_input.color.R * light_col,
+					shader_input.color.G * light_col,
+					shader_input.color.B * light_col
+				))
+			end
+		end
+	end
+
+	gdt.VideoChip0:BlitPixelData(vec2(0,0), pd)
+	
 end
 
 return state_game

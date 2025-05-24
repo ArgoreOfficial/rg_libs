@@ -24,6 +24,8 @@ function state:on_enter()
 	engine.camera_pos = vec3(0,0,2)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
+
+	rg3d:set_light_dir(vec3(1,-1,-1))
 end
 
 function state:on_exit()
@@ -142,7 +144,7 @@ function state:draw()
 	local t = gdt.CPU0.Time
 	local model_matrix = rmath:mat4_translate(nil, vec3(0.4,0,0))
 	model_matrix       = rmath:mat4_rotateY(model_matrix, math.cos(t) * rmath:radians(20) - rmath:radians(20))
-	model_matrix       = rmath:mat4_rotateX(model_matrix, math.sin(t) * rmath:radians(45))
+	model_matrix       = rmath:mat4_rotateX(model_matrix, math.sin(t) * rmath:radians(10))
 	rg3d:push_model_matrix(model_matrix)
 	
 	rg3d:begin_render()

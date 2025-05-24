@@ -27,7 +27,7 @@ local state_machine = require("state_machine")
 state_machine:add_state("splash", require("state_splash"))
 state_machine:add_state("menu",   require("state_menu"))
 state_machine:add_state("game",   require("state_game"))
-state_machine:set_state("menu")
+state_machine:set_state("game")
 
 local shading = gdt.ROM.User.SpriteSheets["shading_cross.png"]
 --local rg_tex  = gdt.ROM.User.SpriteSheets["rg_logo.png"]
@@ -95,6 +95,8 @@ end
 
 -- update function is repeated every time tick
 
+rg3d:set_light_dir(vec3(0,1,0))
+
 function update()
 	local dt = gdt.CPU0.DeltaTime
 	
@@ -105,4 +107,5 @@ function update()
 	rg3d:push_look_at(engine.camera_pos, engine.camera_pos + engine.camera_dir, vec3(0,1,0))
 	
 	state_machine:draw()
+	engine:draw()
 end
