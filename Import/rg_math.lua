@@ -319,7 +319,6 @@ end
 
 function lib:mat3_inverse(_mat)
     local ret = lib:mat3x3()
-    -- computes the inverse of a matrix m
     local det = _mat.m00 * (_mat.m11 * _mat.m22 - _mat.m21 * _mat.m12) -
                 _mat.m01 * (_mat.m10 * _mat.m22 - _mat.m12 * _mat.m20) +
                 _mat.m02 * (_mat.m10 * _mat.m21 - _mat.m11 * _mat.m20)
@@ -351,6 +350,27 @@ function lib:mat3_transpose( _mat )
     end
 
 	return res
+end
+
+function lib:mat3_transposed_inverse(_mat)
+    local ret = lib:mat3x3()
+    local det = _mat.m00 * (_mat.m11 * _mat.m22 - _mat.m21 * _mat.m12) - 
+                _mat.m01 * (_mat.m10 * _mat.m22 - _mat.m12 * _mat.m20) + 
+                _mat.m02 * (_mat.m10 * _mat.m21 - _mat.m11 * _mat.m20)
+
+    local invdet = 1.0 / det
+    
+    ret.m00 =  (_mat.m11*_mat.m22-_mat.m21*_mat.m12) * invdet
+    ret.m10 = -(_mat.m01*_mat.m22-_mat.m02*_mat.m21) * invdet
+    ret.m20 =  (_mat.m01*_mat.m12-_mat.m02*_mat.m11) * invdet
+    ret.m01 = -(_mat.m10*_mat.m22-_mat.m12*_mat.m20) * invdet
+    ret.m11 =  (_mat.m00*_mat.m22-_mat.m02*_mat.m20) * invdet
+    ret.m21 = -(_mat.m00*_mat.m12-_mat.m10*_mat.m02) * invdet
+    ret.m02 =  (_mat.m10*_mat.m21-_mat.m20*_mat.m11) * invdet
+    ret.m12 = -(_mat.m00*_mat.m21-_mat.m20*_mat.m01) * invdet
+    ret.m22 =  (_mat.m00*_mat.m11-_mat.m10*_mat.m01) * invdet
+
+    return ret
 end
 
 --------------------------------------------------------

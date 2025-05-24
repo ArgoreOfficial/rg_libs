@@ -26,6 +26,12 @@ function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 			_extract_vec3(m[POS], 3),
 			_extract_vec3(m[POS], 6)
 		}
+		
+		local model_space_verts = {
+			_extract_vec3(m[POS], 0),
+			_extract_vec3(m[POS], 3),
+			_extract_vec3(m[POS], 6)
+		}
 
 		local vertex_normals = {
 			_extract_vec3(m[NORM], 0),
@@ -38,6 +44,7 @@ function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 		if m[POS+9] then -- if not nil, face is a quad
 			func = rg3d.raster_quad
 			table.insert(face, _extract_vec3(m[POS], 9))
+			table.insert(model_space_verts, _extract_vec3(m[POS], 9))
 			table.insert(vertex_normals, _extract_vec3(m[NORM], 9))
 		end
 		

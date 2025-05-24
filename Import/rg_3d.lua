@@ -21,10 +21,12 @@ local g_eye_dir = vec3(0,0,1)
 local g_view_mat = nil
 local g_view_mat_trans_inv = nil
 local g_model_view_mat = nil
+local g_model_mat_trans_inv = nil
 local g_debug_texture = gdt.ROM.User.SpriteSheets["debug.png"]
 
-local g_view_space_light_dir = vec3(0,0,0)
-local g_light_dir = vec3(0,1,0)
+local g_light_dir             = vec3(0,1,0)
+local g_view_space_light_dir  = vec3(0,1,0)
+local g_model_space_light_dir = vec3(0,1,0)
 
 local g_raster_tri_func  = nil
 local g_raster_quad_func = nil
@@ -175,7 +177,7 @@ function lib:push_look_at(_eye, _center, _up)
 	g_view_mat = rmath:mat4_look_at(_eye, _center, _up)
 	g_model_view_mat = g_view_mat
 
-	g_view_mat_trans_inv = rmath:mat3_transpose(rmath:mat3_inverse(g_view_mat))
+	g_view_mat_trans_inv = rmath:mat3_transposed_inverse(g_view_mat)
     g_view_space_light_dir = rmath:vec3_normalize(rmath:mat3_mult_vec3(g_view_mat_trans_inv, g_light_dir))
 end
 
@@ -192,6 +194,17 @@ end
 
 function lib:push_model_matrix(_model)
 	g_model_view_mat = rmath:mat4_mult_mat4(_model, g_view_mat) 
+	
+	if _model then
+		g_model_mat_trans_inv   = rmath:mat3_transposed_inverse(_model)
+		g_model_space_light_dir = rmath:vec3_normalize(rmath:mat3_mult_vec3(g_model_mat_trans_inv, g_light_dir))
+	else
+		g_model_space_light_dir = g_light_dir
+	end
+end
+
+function lib:get_model_space_ligt_dir()
+	return g_model_space_light_dir
 end
 
 --------------------------------------------------------

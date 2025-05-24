@@ -9,7 +9,8 @@ local rshaders = require("rg_shaders")
 local state_machine = require("state_machine")
 local FPS = 0
 
-local rb1 = gdt.VideoChip0.RenderBuffers[1]
+local vis_renderbuffer = gdt.VideoChip0.RenderBuffers[1]
+local target_renderbuffer = gdt.VideoChip0.RenderBuffers[2]
 local kanohi_hau = nil
 
 function state_game:on_enter()
@@ -19,13 +20,14 @@ function state_game:on_enter()
 		0.5,  -- near clip
 		50    -- far clip
 	)
-	kanohi_hau = rmesh:require_drawlist("kanohi_hau", vec3(0,-0.25,0), vec3(0,0,0))
+	kanohi_hau = rmesh:require_drawlist("kanohi_hau", vec3(0,-0.25,0.2), vec3(0,0,0))
 
-	engine.camera_pos = vec3(0,0,2)
+	engine.camera_pos = vec3(0,0,3)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
 	
-	gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height)
+	gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height) -- vis buffer
+	gdt.VideoChip0:SetRenderBufferSize(2, gdt.VideoChip0.Width, gdt.VideoChip0.Height) -- target buffer
 end
 
 function state_game:on_exit()
@@ -61,31 +63,34 @@ local function barycentric_lerp(_a,_b,_c, _u,_v,_w)
 end
 
 function state_game:draw()
-	if not rb1 then return end
 	if not kanohi_hau then return end
 
-	local light_dir = -vec3(
-		math.cos(gdt.CPU0.Time),
-		0,
-		math.sin(gdt.CPU0.Time)
-	)
-	rg3d:set_light_dir(-light_dir)
+	rg3d:set_light_dir(vec3(-1,0,0))
 
 	rshaders:use_funcs("draw_id")
 
 	gdt.VideoChip0:RenderOnBuffer(1)
 	gdt.VideoChip0:Clear(color.black)
-	rg3d:push_model_matrix(nil)
+
+	local model = nil
+	model = rmath:mat4_rotateY(model, gdt.CPU0.Time)
+	model = rmath:mat4_rotateX(model, gdt.CPU0.Time*0.7)
+	model = rmath:mat4_rotateZ(model, gdt.CPU0.Time*1.3)
+	rg3d:push_model_matrix(model)
+	local ms_light_dir = rg3d:get_model_space_ligt_dir()
 	
 	rg3d:begin_render()
 		rmesh:drawlist_submit(kanohi_hau)
 	local spans = rg3d:end_render() or {}
 	
+	gdt.VideoChip0:RenderOnBuffer(2)
+	gdt.VideoChip0:Clear(color.blue) -- normal rendering here
 	gdt.VideoChip0:RenderOnScreen()
-	gdt.VideoChip0:Clear(color.blue)
-	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),rb1,rb1.Width,rb1.Height)
 
-	local pd = rb1:GetPixelData()
+	--gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),vis_renderbuffer,vis_renderbuffer.Width,vis_renderbuffer.Height)
+
+	local vis_pd = vis_renderbuffer:GetPixelData()
+	local target_pd = target_renderbuffer:GetPixelData()
 	local index = 0
 	local pixel = nil
 	local shader_input = nil
@@ -98,17 +103,17 @@ function state_game:draw()
 	end
 
 	for y = spans.top, spans.bottom do
-		if y > 0 and y <= pd.Height then
+		if y > 0 and y <= target_pd.Height then
 			if spans.spans[y] then
 				for x = spans.spans[y][1], spans.spans[y][2] do
-					if x > 0 and x <= pd.Width then
-						pixel = pd:GetPixel(x,y)
+					if x > 0 and x <= target_pd.Width then
+						pixel = vis_pd:GetPixel(x,y)
 						if DEBUG == 1 then
 							if pixel.R + pixel.G + pixel.B == 0 then
-								pd:SetPixel(x,y,color.white)		
+								target_pd:SetPixel(x,y,color.white)		
 							end
 						elseif DEBUG == 2 then
-							pd:SetPixel(x,y, Color(
+							target_pd:SetPixel(x,y, Color(
 								rmath:lerp(pixel.R, 255, 0.5), 
 								rmath:lerp(pixel.G, 255, 0.5), 
 								rmath:lerp(pixel.B, 255, 0.5)
@@ -133,10 +138,11 @@ function state_game:draw()
 									shader_input.vertex_normals[3],
 									u,v,w 
 								)
+								
 								-- light_col =  shader_input.light_intensity or 1
-								light_col = rmath:vec3_dot(light_dir, ws_normal)
+								light_col = math.max(0.1, rmath:vec3_dot(ms_light_dir, ws_normal))
 
-								pd:SetPixel(x,y, Color(
+								target_pd:SetPixel(x,y, Color(
 									shader_input.color.R * light_col,
 									shader_input.color.G * light_col,
 									shader_input.color.B * light_col
@@ -149,7 +155,7 @@ function state_game:draw()
 		end
 	end
 
-	gdt.VideoChip0:BlitPixelData(vec2(0,0), pd)
+	gdt.VideoChip0:BlitPixelData(vec2(0,0), target_pd)
 end
 
 return state_game
