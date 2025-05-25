@@ -36,6 +36,18 @@ function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 			_extract_vec3(m.n, 3),
 			_extract_vec3(m.n, 6)
 		}
+		
+		local vertex_tangents = {
+			_extract_vec3(m.t, 0),
+			_extract_vec3(m.t, 3),
+			_extract_vec3(m.t, 6)
+		}
+		
+		local vertex_bitangents = {
+			_extract_vec3(m.b, 0),
+			_extract_vec3(m.b, 3),
+			_extract_vec3(m.b, 6)
+		}
 
 		local uvs = {
 			_extract_vec2(m.uv, 0),
@@ -49,6 +61,8 @@ function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 			func = rg3d.raster_quad
 			table.insert(face, _extract_vec3(m.p, 9))
 			table.insert(vertex_normals, _extract_vec3(m.n, 9))
+			table.insert(vertex_tangents, _extract_vec3(m.t, 9))
+			table.insert(vertex_bitangents, _extract_vec3(m.b, 9))
 			table.insert(uvs, _extract_vec2(m.uv, 6))
 		end
 		
@@ -64,6 +78,8 @@ function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 			color = col,
 			normal = rmath:get_triangle_normal(face),
 			vertex_normals = vertex_normals,
+			vertex_tangents = vertex_tangents,
+			vertex_bitangents = vertex_bitangents,
 			texcoords = uvs
 		}}}
 		table.insert(command_list, command)
