@@ -24,7 +24,8 @@ local ms_light_dir = vec3(0,1,0)
 local model_view_mat = {}
 
 local rotate_x = 0
-local rotate_y = 0
+local rotate_y = -0.7
+local zoom = 0
 
 local DEBUG = 0
 
@@ -57,9 +58,8 @@ function state_game:on_exit()
 	engine.push_look_at = true
 end
 
-local changed_state = false
-local shift_x = 0
-local shift_y = 0
+local touch_last = nil
+local touch_delta = vec2(0,0)
 
 function state_game:update(_delta_time)
 	if _delta_time == 0 then FPS = 0 
@@ -69,25 +69,25 @@ function state_game:update(_delta_time)
 		DEBUG = gdt.Switch0.State and 1 or 0
 	end
 
-	local x_diff = 0
-	local y_diff = 0
-	if engine.rinput["LeftArrow"]  then x_diff = x_diff - 1 end
-	if engine.rinput["RightArrow"] then x_diff = x_diff + 1 end
-	if engine.rinput["UpArrow"]    then y_diff = y_diff - 1 end
-	if engine.rinput["DownArrow"]  then y_diff = y_diff + 1 end
-
-	if x_diff == 0 and y_diff == 0 then
-		changed_state = false
-	else
-		if not changed_state then
-			shift_x = shift_x + x_diff
-			shift_y = shift_y + y_diff
-			print(shift_x, shift_y)
+	if engine.rinput["UpArrow"]    then zoom = zoom + _delta_time * 3 end
+	if engine.rinput["DownArrow"]  then zoom = zoom - _delta_time * 3 end
+	
+	if gdt.VideoChip0.TouchState then
+		local touch_now = gdt.VideoChip0.TouchPosition
+		if touch_last then
+			touch_delta = touch_now - touch_last
+			touch_last = touch_now
+		else
+			touch_delta = vec2(0,0)
+			touch_last = touch_now
 		end
-
-		changed_state = true
+	else
+		touch_last = nil
+		touch_delta = touch_delta * 0.9
 	end
 	
+	rotate_x = rotate_x + rmath:radians(touch_delta.Y)
+	rotate_y = rotate_y + rmath:radians(touch_delta.X)
 end
 
 local font = gdt.ROM.System.SpriteSheets["StandardFont"]
@@ -246,8 +246,9 @@ function state_game:draw()
 	
 	-- Model Setup
 	local model = nil
-	model = rmath:mat4_rotateY(model, rotate_y)
+	model = rmath:mat4_translate(model, vec3(0,-0.2,zoom))
 	model = rmath:mat4_rotateX(model, rotate_x)
+	model = rmath:mat4_rotateY(model, rotate_y)
 	
 	-- Shading pass
 	if STAGE_SHADOW then -- kinda broken
@@ -287,6 +288,9 @@ function state_game:draw()
 	else
 		gdt.VideoChip0:Clear(Color(29,29,29))
 	end
+	gdt.VideoChip0:DrawText(vec2(0,gdt.VideoChip0.Height-16),font,"Click and drag to rotate",color.white,color.clear)
+	gdt.VideoChip0:DrawText(vec2(0,gdt.VideoChip0.Height-8),font,"Up and down arrow to zoom in and out",color.white,color.clear)
+	
 	gdt.VideoChip0:RenderOnScreen()
 
 	--gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),vis_renderbuffer,vis_renderbuffer.Width,vis_renderbuffer.Height)
@@ -297,6 +301,9 @@ function state_game:draw()
 	material_pass(spans, vis_pd, target_pd)
 
 	gdt.VideoChip0:BlitPixelData(vec2(0,0), target_pd)
+	if DEBUG == 1 then
+		gdt.VideoChip0:DrawText(vec2(0,8),font,"RENDER DEBUG MODE",color.white,color.black)
+	end
 end
 
 return state_game
