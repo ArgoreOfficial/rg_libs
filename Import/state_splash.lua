@@ -17,7 +17,7 @@ local palette = gdt.ROM.User.SpriteSheets["stripes.png"]
 function state:on_enter()
 	rg3d:push_perspective(
 		gdt.VideoChip0.Width / gdt.VideoChip0.Height,    -- screen aspect ratio
-		rmath:radians(47/2), -- FOV (radians)
+		rmath:radians(40), -- FOV (radians)
 		0.5,  -- near clip
 		50    -- far clip
 	)
@@ -127,7 +127,7 @@ function state:update(_delta_time)
 		if path_frame > 230 then
 			path_frame = 1
 
-			state_machine:set_state("menu")
+			state_machine:set_state("game")
 		end
 	end
 

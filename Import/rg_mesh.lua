@@ -42,7 +42,7 @@ function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 			_extract_vec3(m.t, 3),
 			_extract_vec3(m.t, 6)
 		}
-		
+
 		local vertex_bitangents = {
 			_extract_vec3(m.b, 0),
 			_extract_vec3(m.b, 3),
@@ -87,9 +87,12 @@ function lib:drawlist_build(_mesh,_pos,_rot,_scale)
 	return command_list
 end
 
-function lib:drawlist_submit(_list)
+function lib:drawlist_submit(_list,_width,_height)
 	for i = 1, #_list do
-		_list[i][1](rg3d, table.unpack(_list[i][2]))
+		local args = _list[i][2]
+		args[2] = _width or screen_width
+		args[3] = _height or screen_height
+		_list[i][1](rg3d, table.unpack(args))
 	end
 end
 

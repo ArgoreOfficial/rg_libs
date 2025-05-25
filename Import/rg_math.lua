@@ -81,6 +81,10 @@ end
 --[[  Vector 3                                        ]]
 --------------------------------------------------------
 
+function lib:vec3_len(_vec)
+    return math.sqrt( _vec.X * _vec.X + _vec.Y * _vec.Y + _vec.Z * _vec.Z )
+end
+
 function lib:vec3_normalize( _vec )
     local len = math.sqrt( _vec.X * _vec.X + _vec.Y * _vec.Y + _vec.Z * _vec.Z )
     if len == 0 then
@@ -248,6 +252,14 @@ function lib:mat3x3(_00, _01, _02, _10, _11, _12, _20, _21, _22 )
         m00 = _00 or 1, m01 = _01 or 0, m02 = _02 or 0,
         m10 = _10 or 0, m11 = _11 or 1, m12 = _12 or 0,
         m20 = _20 or 0, m21 = _21 or 0, m22 = _22 or 1
+    }
+end
+
+function lib:mat3x3_from_vec3(_0, _1, _2) 
+    return {
+        m00 = _0.X or 1, m01 = _0.Y or 0, m02 = _0.Z or 0,
+        m10 = _1.X or 0, m11 = _1.Y or 1, m12 = _1.Z or 0,
+        m20 = _2.X or 0, m21 = _2.Y or 0, m22 = _2.Z or 1
     }
 end
 

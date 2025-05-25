@@ -25,7 +25,7 @@ local engine = require "engine"
 local state_machine = require("state_machine")
 
 state_machine:add_state("splash", require("state_splash"))
-state_machine:add_state("menu",   require("state_menu"))
+--state_machine:add_state("menu",   require("state_menu"))
 state_machine:add_state("game",   require("state_game"))
 state_machine:set_state("game")
 
@@ -46,8 +46,6 @@ function update()
 	engine:update(dt)
 	state_machine:update(dt)
 	engine:post_update(dt)
-	
-	rg3d:push_look_at(engine.camera_pos, engine.camera_pos + engine.camera_dir, vec3(0,1,0))
 	
 	state_machine:draw()
 	engine:draw()

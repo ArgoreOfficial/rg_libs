@@ -14,6 +14,7 @@ engine.camera_dir   = vec3(0,0,-1)
 
 engine.sun_dir = rmath:vec3_normalize(vec3(0,-1,-1))
 engine.average_frametime = 0.0
+engine.push_look_at = true
 
 local font = gdt.ROM.System.SpriteSheets["StandardFont"]
 
@@ -42,6 +43,10 @@ function engine:post_update(_delta_time)
 	engine.camera_pitch = math.min(engine.camera_pitch,  rmath:radians(85))
 	engine.camera_pitch = math.max(engine.camera_pitch, -rmath:radians(85))
 	engine.camera_dir   = rmath:rot_to_dir(engine.camera_pitch, engine.camera_yaw)
+
+	if engine.push_look_at then
+		rg3d:push_look_at(engine.camera_pos, engine.camera_pos + engine.camera_dir, vec3(0,1,0))
+	end
 end
 
 -- called after state:draw

@@ -51,19 +51,21 @@ end
 
 -- Face Index
 
-function lib.index_quad(_p1,_p2,_p3,_p4,_shader_input)		
+function lib.index_quad(_p1,_p2,_p3,_p4,_shader_input)	
+	local prim_index = _shader_input.primitive_index
 	_fill_quad(_p1, _p2, _p3, _p4, Color(
-		math.min(255, _shader_input.primitive_index),
-		math.min(255, _shader_input.primitive_index-255),
-		math.min(255, _shader_input.primitive_index-510)
+		bit32.extract(prim_index,0,8),
+		bit32.extract(prim_index,8,8),
+		bit32.extract(prim_index,16,8)
 	))
 end
 
-function lib.index_tri(_p1,_p2,_p3,_shader_input)		
+function lib.index_tri(_p1,_p2,_p3,_shader_input)
+	local prim_index = _shader_input.primitive_index
 	gdt.VideoChip0:FillTriangle(_p1,_p2,_p3,Color(
-		math.min(255, _shader_input.primitive_index),
-		math.min(255, _shader_input.primitive_index-255),
-		math.min(255, _shader_input.primitive_index-510)
+		bit32.extract(prim_index,0,8),
+		bit32.extract(prim_index,8,8),
+		bit32.extract(prim_index,16,8)
 	))
 end
 
