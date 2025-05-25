@@ -12,14 +12,14 @@ local FPS = 0
 local vis_renderbuffer = gdt.VideoChip0.RenderBuffers[1]
 local target_renderbuffer = gdt.VideoChip0.RenderBuffers[2]
 local texture_rb = gdt.VideoChip0.RenderBuffers[3]
+local normal_rb = gdt.VideoChip0.RenderBuffers[4]
 
 local demo_mesh = {}
-local demo_pd = {}
-local normal_map = nil
+local albedo_data = {}
+local normal_data = nil
 local ms_light_dir = vec3(0,1,0)
 
 local DEBUG = 0
-local NORMAL_MODE = 0
 
 function state_game:on_enter()
 	rg3d:push_perspective(
@@ -36,12 +36,11 @@ function state_game:on_enter()
 	
 	gdt.VideoChip0:SetRenderBufferSize(1, gdt.VideoChip0.Width, gdt.VideoChip0.Height) -- vis buffer
 	gdt.VideoChip0:SetRenderBufferSize(2, gdt.VideoChip0.Width, gdt.VideoChip0.Height) -- target buffer
-	gdt.VideoChip0:SetRenderBufferSize(3, 256, 256) -- mesh texture buffer
+	gdt.VideoChip0:SetRenderBufferSize(3, 256, 256) -- albedo texture buffer
+	gdt.VideoChip0:SetRenderBufferSize(4, 256, 256) -- normal texture buffer
 	
-	normal_map = gdt.ROM.User.SpriteSheets["TX_penta_normal.png"]:GetPixelData()
-
-	local tex_lua = require "penta_texture"
-	demo_pd = tex_lua:toPixelData(texture_rb:GetPixelData())
+	albedo_data = require("TX_penta_albedo"):toPixelData(texture_rb:GetPixelData())
+	normal_data = require("TX_penta_normal"):toPixelData(normal_rb:GetPixelData())
 end
 
 function state_game:on_exit()
@@ -80,10 +79,6 @@ end
 
 local function barycentric_lerp(_a,_b,_c, _u,_v,_w)
 	return _a*_u + _b*_v + _c*_w
-end
-
-local function visbility_pass()
-
 end
 
 local index = 0
@@ -133,8 +128,8 @@ local function material_func(_x, _y, _pixel) -- : color
 				shader_input.texcoords[3],  
 				u,v,w )
 
-			tex_uv = vec2((tex_uv.X % 1) * demo_pd.Width, (tex_uv.Y % 1) * demo_pd.Height)
-			tex_uv = vec2(math.floor(tex_uv.X % demo_pd.Width), math.floor(tex_uv.Y % demo_pd.Width))
+			tex_uv = vec2((tex_uv.X % 1) * albedo_data.Width, (tex_uv.Y % 1) * albedo_data.Height)
+			tex_uv = vec2(math.floor(tex_uv.X % albedo_data.Width), math.floor(tex_uv.Y % albedo_data.Width))
 			
 			local T = barycentric_lerp(
 				shader_input.vertex_tangents[1],
@@ -159,7 +154,7 @@ local function material_func(_x, _y, _pixel) -- : color
 			)
 			--TBN = rmath:mat3_transpose(TBN)
 			
-			local tex_normal = normal_map:GetPixel(tex_uv.X+1, tex_uv.Y+1)
+			local tex_normal = normal_data:GetPixel(tex_uv.X+1, tex_uv.Y+1)
 			local ts_normal = rmath:vec3_normalize(vec3(
 				(tex_normal.R / 255) * 2.0 - 1.0,
 				(tex_normal.G / 255) * 2.0 - 1.0,
@@ -176,7 +171,7 @@ local function material_func(_x, _y, _pixel) -- : color
 
 			local ws_tex_normal = rmath:mat3_mult_vec3(TBN, ts_normal)
 
-			local tex_col = demo_pd:GetPixel(tex_uv.X+1, tex_uv.Y+1)
+			local tex_col = albedo_data:GetPixel(tex_uv.X+1, tex_uv.Y+1)
 
 			light = math.min(math.max(0.1, rmath:vec3_dot(ms_light_dir, ws_tex_normal)),1)
 			local frag_color =  Color(
