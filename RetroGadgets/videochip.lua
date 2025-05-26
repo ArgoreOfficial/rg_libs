@@ -31,6 +31,11 @@ function _G._videochip()
         Width  = GADGET.ScreenWidth,
         Height = GADGET.ScreenHeight,
         RenderBuffers = {},
+        TouchState = false,
+        TouchDown = false,
+        TouchUp = false,
+        TouchPosition = vec2(0,0),
+
         _screen_buffer = screen_buffer,
         _current_renderbuffer = screen_buffer
     }, meta)
@@ -40,6 +45,19 @@ function _G._videochip()
     end
 
     return vc
+end
+
+function _G._update_videochip(_dt)
+    local touch_state = love.mouse.isDown(1)
+    
+    gdt.VideoChip0.TouchDown = touch_state and not gdt.VideoChip0.TouchState
+    gdt.VideoChip0.TouchUp   = not touch_state and gdt.VideoChip0.TouchState
+    if touch_state then
+        local x,y = love.mouse.getPosition()
+        gdt.VideoChip0.TouchPosition = vec2(x, y)
+    end
+
+    gdt.VideoChip0.TouchState = touch_state
 end
 
 function methods:Clear(_color)

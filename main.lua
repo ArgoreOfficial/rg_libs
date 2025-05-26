@@ -51,6 +51,7 @@ end
 
 function love.update(_dt)
 	_update_gdt(_dt)
+	_update_videochip(_dt)
 end
 
 function love.keypressed(key, scancode, isrepeat)
