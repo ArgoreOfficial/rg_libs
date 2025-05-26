@@ -38,6 +38,8 @@ function love.load()
 		{vsync=1}
 	)
 
+	love.window.setTitle("Gadget")
+
 	love.graphics.setLineStyle("rough") 
 	love.graphics.setLineWidth(1) 
 	

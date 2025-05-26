@@ -51,7 +51,9 @@ end
 
 -- called after state:draw
 function engine:draw()
-	gdt.VideoChip0:DrawText(vec2(0,0),font,"FPS: " .. tostring(math.floor(1 / engine.average_frametime)),color.white,color.clear)
+	local ms_text = string.format("%02.2f", engine.average_frametime * 1000)
+	gdt.VideoChip0:DrawText(vec2(0,0), font, tostring( math.floor( 1 / engine.average_frametime ) ) .. "FPS", color.white, color.clear )
+	gdt.VideoChip0:DrawText(vec2(0,8), font, ms_text .. "ms", color.white, color.clear )
 end
 
 return engine

@@ -17,7 +17,6 @@ function rom_spritesheet_meta:__index(_k)
     return _spritesheet("Import/" .. _k, img, img:getWidth(), img:getHeight() )
 end
 
-
 -- "SpriteSheet" | "Code" | "AudioSample"
 local asset_types = {
     ["lua"] = "Code",
@@ -29,9 +28,17 @@ local asset_types = {
 }
 
 local function _create_rom_system()
+    local SpriteSheets = {}
+
+    -- load standard font texture
+    local ret,standard_font = pcall(love.graphics.newImage, "RetroGadgets/ROM/System/StandardFont.png")
+    if ret then
+        standard_font:setFilter("linear", "nearest")
+        SpriteSheets[ "StandardFont" ] = _spritesheet("StandardFont", standard_font, standard_font:getWidth(), standard_font:getHeight() )
+    end
     return { 
         Assets       = {},
-        SpriteSheets = {},
+        SpriteSheets = SpriteSheets,
         Codes        = {},
         AudioSamples = {}
     }

@@ -172,6 +172,23 @@ function methods:DrawCustomSprite(_position, _spriteSheet, _spriteOffset, _sprit
     _reset_color()    
 end
 
+local font_map_uvs = {}
+local font_map = {
+    { "@", "$", "/", "\\", "&", "0", "1", "2", "3", "4", "5", "6",  "7", "8", "9", "a", "b", "c" },
+    { "d", "e", "f", "g",  "h", "i", "j", "k", "l", "m", "n", "o",  "p", "q", "r", "s", "t", "u" },
+    { "v", "w", "x", "y",  "z", "A", "B", "C", "D", "E", "F", "G",  "H", "I", "J", "K", "L", "M" },
+    { "N", "O", "P", "Q",  "R", "S", "T", "U", "V", "W", "X", "Y",  "Z", "[", "]", "{", "}", "#" },
+    { "!", "%", " ", "|",  "(", ")", "?", "+", "-", "*", "=", "\"", "'", "^", ".", ":", ",", "<" },
+    { ">", "_" }
+}
+
+-- sets up x and y coordinates for the font UVs 
+for y = 1, #font_map do
+    for x = 1, #font_map[y] do
+        font_map_uvs[font_map[y][x]] = vec2(x-1,y-1)
+    end
+end
+
 function methods:DrawText(_position, _fontSprite, _text, _textColor, _backgroundColor)
     -- TODO: _fontSprite 
 
@@ -180,9 +197,18 @@ function methods:DrawText(_position, _fontSprite, _text, _textColor, _background
     local height = font:getHeight(_text)
 
     _set_color(_backgroundColor)
-    love.graphics.rectangle("fill", _position.X, _position.Y, width, height)
+    love.graphics.rectangle("fill", _position.X, _position.Y, #_text * 5, 8)
+    
     _set_color(_textColor)
-    love.graphics.print(_text, _position.X, _position.Y)
+
+    for i=1, #_text do
+        local uv = font_map_uvs[_text:sub(i,i)]
+        if uv then
+            _fontSprite._Quad:setViewport(uv.X*5, uv.Y*8, 5, 8)
+            love.graphics.draw(_fontSprite._Image, _fontSprite._Quad, _position.X + (i-1) * 5, _position.Y ) 
+        end
+    end
+
     _reset_color()
 end
 
