@@ -256,11 +256,10 @@ function lib:mat3x3(_00, _01, _02, _10, _11, _12, _20, _21, _22 )
 end
 
 function lib:mat3x3_from_vec3(_0, _1, _2) 
-    return {
-        m00 = _0.X or 1, m01 = _0.Y or 0, m02 = _0.Z or 0,
-        m10 = _1.X or 0, m11 = _1.Y or 1, m12 = _1.Z or 0,
-        m20 = _2.X or 0, m21 = _2.Y or 0, m22 = _2.Z or 1
-    }
+    return lib:mat3x3(
+        _0.X or 1, _0.Y or 0, _0.Z or 0,
+        _1.X or 0, _1.Y or 1, _1.Z or 0,
+        _2.X or 0, _2.Y or 0, _2.Z or 1 )
 end
 
 function lib:mat3_print(_mat)

@@ -23,12 +23,20 @@ function vec3_meta.__tostring(_vec)
         .. string.format("%.1f", _vec.Z)
 end
 
-function vec3_meta.__mul(_vec,_scalar)
-    return vec3(
-        _vec.X * _scalar, 
-        _vec.Y * _scalar, 
-        _vec.Z * _scalar
-    )
+function vec3_meta.__mul(_lhs,_rhs)
+    if type(_lhs) == "number" then
+        return vec3(
+            _lhs * _rhs.X, 
+            _lhs * _rhs.Y, 
+            _lhs * _rhs.Z
+        )
+    else
+        return vec3(
+            _lhs.X * _rhs, 
+            _lhs.Y * _rhs, 
+            _lhs.Z * _rhs
+        )
+    end
 end
 
 function vec3_meta.__div(_vec,_scalar)

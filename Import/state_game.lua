@@ -51,7 +51,7 @@ function state_game:on_enter()
 	gdt.VideoChip0:SetRenderBufferSize(5, 256, 256) -- shadow buffer
 	
 	albedo_data = require("TX_penta_albedo"):toPixelData(texture_rb:GetPixelData())
-	normal_data = require("TX_penta_normal_ms"):toPixelData(normal_rb:GetPixelData())
+	normal_data = require("TX_penta_normal"):toPixelData(normal_rb:GetPixelData())
 end
 
 function state_game:on_exit()
@@ -113,6 +113,10 @@ local function barycentric_lerp(_a,_b,_c, _u,_v,_w)
 	return _a*_u + _b*_v + _c*_w
 end
 
+local function fetch_attrib(_attr,_u,_v,_w)
+	return barycentric_lerp(_attr[1],_attr[2],_attr[3],_u,_v,_w)
+end
+
 local index = 0
 local shader_input = nil
 local light = 1
@@ -124,6 +128,37 @@ local function uv_to_pixel_coordinate(_uv, _width, _height)
 	_uv = vec2((_uv.X % 1) * _width, (_uv.Y % 1) * _height)
 	_uv = vec2(math.floor(_uv.X % _width), math.floor(_uv.Y % _width))
 	return vec2(_uv.X+1, _uv.Y+1)
+end
+
+local function calculate_tb(_pos, _uvs, _normal)
+	local edge1 = _pos[2] - _pos[1]
+	local edge2 = _pos[3] - _pos[1]
+	local deltaUV1 = _uvs[2] - _uvs[1]
+	local deltaUV2 = _uvs[3] - _uvs[1] 
+
+	local f = 1.0 / (deltaUV1.X * deltaUV2.Y - deltaUV2.X * deltaUV1.Y)
+
+	local tangent = vec3(
+		f * (deltaUV2.Y * edge1.X - deltaUV1.Y * edge2.X),
+		f * (deltaUV2.Y * edge1.Y - deltaUV1.Y * edge2.Y),
+		f * (deltaUV2.Y * edge1.Z - deltaUV1.Y * edge2.Z)
+	)
+
+	local bitangent = vec3(
+		f * (-deltaUV2.X * edge1.X + deltaUV1.X * edge2.X),
+		f * (-deltaUV2.X * edge1.Y + deltaUV1.X * edge2.Y),
+		f * (-deltaUV2.X * edge1.Z + deltaUV1.X * edge2.Z)
+	)
+
+	return tangent, bitangent
+end
+
+local function colvec3(_vec)
+	return Color(
+		_vec.X * 255,
+		_vec.Y * 255,
+		_vec.Z * 255
+	)
 end
 
 local function material_func(_x, _y, _pixel) -- : color
@@ -150,17 +185,25 @@ local function material_func(_x, _y, _pixel) -- : color
 			shader_input = rg3d:get_draw_call(index).args[5] or p4
 			
 			local u,v,w  = barycentric(vec2(_x,_y), p1, p2, p3)
-			local tex_uv = barycentric_lerp(shader_input.texcoords[1], shader_input.texcoords[2], shader_input.texcoords[3], u,v,w)
-			
-			local tex_coord = uv_to_pixel_coordinate(tex_uv, 256, 256)
-			local tex_albedo = albedo_data:GetPixel(tex_coord.X, tex_coord.Y)
-			local tex_normal = normal_data:GetPixel(tex_coord.X, tex_coord.Y)
-			local normal = vec3(
-				(tex_normal.R / 255) * 2 - 1,
-				(tex_normal.G / 255) * 2 - 1,
-				(tex_normal.B / 255) * 2 - 1
-			)
 
+			local a_texcoord  = fetch_attrib(shader_input.texcoords, u,v,w)
+			local pixel_coord = uv_to_pixel_coordinate(a_texcoord, 256, 256)
+
+			local a_normal  = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_normals,  u,v,w))
+			local a_tangent = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_tangents, u,v,w))
+			local bitangent = rmath:vec3_normalize(rmath:vec3_cross(a_tangent, a_normal))
+			
+			local tex_albedo = albedo_data:GetPixel(pixel_coord.X, pixel_coord.Y)
+			local tex_normal = normal_data:GetPixel(pixel_coord.X, pixel_coord.Y)
+			tex_normal = vec3(
+				(tex_normal.R / 255) * 2.0 - 1.0, 
+				(tex_normal.G / 255) * 2.0 - 1.0, 
+				(tex_normal.B / 255) * 2.0 - 1.0
+			) 
+
+			local TBN    = rmath:mat3x3_from_vec3(a_tangent, bitangent, a_normal)
+			local normal = rmath:vec3_normalize(rmath:mat3_mult_vec3(TBN, tex_normal))
+			
 			-- light = math.min(math.max(0.1, rmath:vec3_dot(ms_light_dir, N)),1)
 			light = math.min(math.max(0.1, rmath:vec3_dot(ms_light_dir, normal)),1)
 
@@ -218,7 +261,8 @@ local function material_func(_x, _y, _pixel) -- : color
 				light * tex_albedo.B
 			)
 
-			return frag
+			-- return frag
+			return colvec3(rmath:vec3_normalize(rmath:mat3_mult_vec3(TBN, vec3(0,1,0))))
 		end
 	end
 end
@@ -246,7 +290,7 @@ function state_game:draw()
 	
 	-- Model Setup
 	local model = nil
-	model = rmath:mat4_translate(model, vec3(0,-0.2,zoom))
+	model = rmath:mat4_translate(model, vec3(0,0,zoom))
 	model = rmath:mat4_rotateX(model, rotate_x)
 	model = rmath:mat4_rotateY(model, rotate_y)
 	
