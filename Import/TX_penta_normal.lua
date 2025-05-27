@@ -9,7 +9,7 @@ img.data = {
 
 
 -- convert uint32_t to 4 component color
-function uint32_col(_v)
+local function uint32_col(_v)
 	local r = bit32.band(_v, 0x000000FF) -- weird endianess stuff
 	local g = bit32.band(_v, 0x0000FF00) 
 	local b = bit32.band(_v, 0x00FF0000) 
@@ -22,7 +22,7 @@ function uint32_col(_v)
 	return ColorRGBA(r,g,b,a)
 end
 
-function get_px(_px)
+local function get_px(_px)
 	return vec2(
 		(_px % img.width) + 1,
 		(math.floor(_px / img.width)) + 1

@@ -220,8 +220,8 @@ end
 --------------------------------------------------------
 
 function lib.mip_func_round(_v) return math.floor(_v + 0.5) end
-function lib.mip_func_floor(_v) return math.floor(_v)     end
-function lib.mip_func_ceil (_v) return math.ceil (_v)     end
+function lib.mip_func_floor(_v) return math.floor(_v)       end
+function lib.mip_func_ceil (_v) return math.ceil (_v)       end
 local g_default_mip_function = lib.mip_func_floor
 
 function lib:select_mip(_dval, _max, _mip_function)

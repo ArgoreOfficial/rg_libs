@@ -51,7 +51,7 @@ function state_game:on_enter()
 	gdt.VideoChip0:SetRenderBufferSize(5, 256, 256) -- shadow buffer
 	
 	albedo_data = require("TX_penta_albedo"):toPixelData(texture_rb:GetPixelData())
-	normal_data = require("TX_penta_normal"):toPixelData(normal_rb:GetPixelData())
+	normal_data = require("TX_penta_normal_ms"):toPixelData(normal_rb:GetPixelData())
 end
 
 function state_game:on_exit()
@@ -120,6 +120,12 @@ local p1,p2,p3,p4
 
 local STAGE_SHADOW = false
 
+local function uv_to_pixel_coordinate(_uv, _width, _height)
+	_uv = vec2((_uv.X % 1) * _width, (_uv.Y % 1) * _height)
+	_uv = vec2(math.floor(_uv.X % _width), math.floor(_uv.Y % _width))
+	return vec2(_uv.X+1, _uv.Y+1)
+end
+
 local function material_func(_x, _y, _pixel) -- : color
 	if DEBUG == 1 then
 		if _pixel.R + _pixel.G + _pixel.B == 0 then
@@ -143,26 +149,20 @@ local function material_func(_x, _y, _pixel) -- : color
 			p4 = rg3d:get_draw_call(index).args[4] -- position 4 (quad) OR shader input (triangle)
 			shader_input = rg3d:get_draw_call(index).args[5] or p4
 			
-			local u,v,w = barycentric(vec2(_x,_y), p1, p2, p3)
+			local u,v,w  = barycentric(vec2(_x,_y), p1, p2, p3)
+			local tex_uv = barycentric_lerp(shader_input.texcoords[1], shader_input.texcoords[2], shader_input.texcoords[3], u,v,w)
 			
-			local tex_uv = barycentric_lerp(
-				shader_input.texcoords[1], 
-				shader_input.texcoords[2], 
-				shader_input.texcoords[3],  
-				u,v,w )
-
-			tex_uv = vec2((tex_uv.X % 1) * albedo_data.Width, (tex_uv.Y % 1) * albedo_data.Height)
-			tex_uv = vec2(math.floor(tex_uv.X % albedo_data.Width), math.floor(tex_uv.Y % albedo_data.Width))
-			
-			local N = barycentric_lerp(
-				shader_input.vertex_normals[1],
-				shader_input.vertex_normals[2],
-				shader_input.vertex_normals[3],
-				u,v,w 
+			local tex_coord = uv_to_pixel_coordinate(tex_uv, 256, 256)
+			local tex_albedo = albedo_data:GetPixel(tex_coord.X, tex_coord.Y)
+			local tex_normal = normal_data:GetPixel(tex_coord.X, tex_coord.Y)
+			local normal = vec3(
+				(tex_normal.R / 255) * 2 - 1,
+				(tex_normal.G / 255) * 2 - 1,
+				(tex_normal.B / 255) * 2 - 1
 			)
 
-			local tex_albedo = albedo_data:GetPixel(tex_uv.X+1, tex_uv.Y+1)
-			light = math.min(math.max(0.1, rmath:vec3_dot(ms_light_dir, N)),1)
+			-- light = math.min(math.max(0.1, rmath:vec3_dot(ms_light_dir, N)),1)
+			light = math.min(math.max(0.1, rmath:vec3_dot(ms_light_dir, normal)),1)
 
 			-- Do shadow pass
 			if STAGE_SHADOW then
@@ -242,7 +242,7 @@ end
 
 function state_game:draw()
 	local time = 0 -- gdt.CPU0.Time
-	light_dir = vec3(0,0,-1)
+	light_dir = vec3(0,1,0)
 	
 	-- Model Setup
 	local model = nil

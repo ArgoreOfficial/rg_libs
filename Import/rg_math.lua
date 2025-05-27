@@ -2,7 +2,7 @@ local lib = {
     const = {}
 }
 
-function setup_const(t)
+local function setup_const(t)
     local proxy = {}
     local mt = {       -- create metatable
       __index = t,
