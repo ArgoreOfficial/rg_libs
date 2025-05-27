@@ -1,51 +1,13 @@
 
-
---[[ CONFIG ]]
-
-GADGET = {
-	ScreenWidth = 224,
-	ScreenHeight = 192,
-	Scale = 2
-}
-
---[[ END CONFIG ]]
-
-
--- TODO:
---[[
-
-CONFIG = require("RetroGadgets/rg_config")
-CONFIG:VideoChip(0, 256, 128)
-CONFIG:KeyboardChip()
-
-require( "RetroGadgets/rg" )
-_setup_rg_runtime(CONFIG)
-
-]]
-
-
--- LÖVE2D setup
-
 -- RG Layer
 require( "RetroGadgets.rg" )
 
-table.unpack = unpack
+table.unpack = unpack 
 
 function love.load()	
-	love.window.setMode(
-		GADGET.ScreenWidth  * GADGET.Scale,
-		GADGET.ScreenHeight * GADGET.Scale,
-		{vsync=1}
-	)
-
-	love.window.setTitle("Gadget")
-
 	love.graphics.setLineStyle("rough") 
 	love.graphics.setLineWidth(1) 
 	
-	--local main_font = love.graphics.newFont(6, "mono")
-	--love.graphics.setFont(main_font)
-
 	gdt.VideoChip0:RenderOnScreen()
 	dofile( "Import/CPU0.lua" )
 	love.graphics.setCanvas()

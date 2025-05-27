@@ -190,11 +190,7 @@ for y = 1, #font_map do
 end
 
 function methods:DrawText(_position, _fontSprite, _text, _textColor, _backgroundColor)
-    -- TODO: _fontSprite 
-
     local font   = love.graphics.getFont()
-    local width  = font:getWidth (_text)
-    local height = font:getHeight(_text)
 
     _set_color(_backgroundColor)
     love.graphics.rectangle("fill", _position.X, _position.Y, #_text * 5, 8)
