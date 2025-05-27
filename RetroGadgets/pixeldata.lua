@@ -30,3 +30,17 @@ function _G._pixeldata(_w, _h, _imagedata)
         _ImageData = _imagedata
     }, meta)
 end
+
+_G.PixelData = {}
+function _G.PixelData.new(width, height, color)
+    width  = math.min(width,  4096)
+    height = math.min(height, 4096)
+    local pd = _pixeldata(width, height, love.image.newImageData(width, height))
+    local width, height = pd._ImageData:getDimensions()
+
+    for y = 1, height do
+        for x = 1, width do
+            pd._ImageData:setPixel(x, y, color.R/255, color.G/255, color.B/255, color.A/255)
+        end
+    end
+end

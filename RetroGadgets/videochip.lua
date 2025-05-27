@@ -25,11 +25,15 @@ local function _reset_color()
     love.graphics.setColor(1, 1, 1, 1)
 end
 
-function _G._videochip()
-    local screen_buffer = _renderbuffer_new(GADGET.ScreenWidth, GADGET.ScreenHeight)
+-- _num_buffers:
+--   Large: 16
+--   Medium: 4
+--   Small: 1
+function _G._videochip(_screen_width, _screen_height, _num_buffers)
+    local screen_buffer = _renderbuffer_new(_screen_width, _screen_height)
     local vc = setmetatable({
-        Width  = GADGET.ScreenWidth,
-        Height = GADGET.ScreenHeight,
+        Width  = _screen_width,
+        Height = _screen_height,
         RenderBuffers = {},
         TouchState = false,
         TouchDown = false,
@@ -40,7 +44,7 @@ function _G._videochip()
         _current_renderbuffer = screen_buffer
     }, meta)
 
-    for i=1,8 do
+    for i=1,_num_buffers do
         table.insert(vc.RenderBuffers, _renderbuffer_new(64, 64))
     end
 

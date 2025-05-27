@@ -9,7 +9,7 @@ _G.gdt = {
         Source = {},
         EventChannels = {}
     },
-    VideoChip0 = _videochip(),
+    VideoChip0 = _videochip(GADGET.ScreenWidth, GADGET.ScreenHeight, 16),
     ROM = require("RetroGadgets.rom")
 }
 
