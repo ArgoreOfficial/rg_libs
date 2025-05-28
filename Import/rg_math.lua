@@ -259,7 +259,8 @@ function lib:mat3x3_from_vec3(_0, _1, _2)
     return lib:mat3x3(
         _0.X or 1, _0.Y or 0, _0.Z or 0,
         _1.X or 0, _1.Y or 1, _1.Z or 0,
-        _2.X or 0, _2.Y or 0, _2.Z or 1 )
+        _2.X or 0, _2.Y or 0, _2.Z or 1 
+    )
 end
 
 function lib:mat3_print(_mat)
@@ -278,54 +279,27 @@ function lib:mat3x3_transform( _mat, _vec )
 end
 
 function lib:mat3x3_mult_mat3x3( _a, _b )
-    local res = lib:mat3x3(0,0,0,0,0,0,0,0,0)
+    local res = lib:mat3x3()
 
-    res.m00 = res.m00 + (_a.m00 * _b.m00)
-    res.m00 = res.m00 + (_a.m01 * _b.m10)
-    res.m00 = res.m00 + (_a.m02 * _b.m20)
-    res.m01 = res.m01 + (_a.m00 * _b.m01)
-    res.m01 = res.m01 + (_a.m01 * _b.m11)
-    res.m01 = res.m01 + (_a.m02 * _b.m21)
-    res.m02 = res.m02 + (_a.m00 * _b.m02)
-    res.m02 = res.m02 + (_a.m01 * _b.m12)
-    res.m02 = res.m02 + (_a.m02 * _b.m22)
-    res.m10 = res.m10 + (_a.m10 * _b.m00)
-    res.m10 = res.m10 + (_a.m11 * _b.m10)
-    res.m10 = res.m10 + (_a.m12 * _b.m20)
-    res.m11 = res.m11 + (_a.m10 * _b.m01)
-    res.m11 = res.m11 + (_a.m11 * _b.m11)
-    res.m11 = res.m11 + (_a.m12 * _b.m21)
-    res.m12 = res.m12 + (_a.m10 * _b.m02)
-    res.m12 = res.m12 + (_a.m11 * _b.m12)
-    res.m12 = res.m12 + (_a.m12 * _b.m22)
-    res.m20 = res.m20 + (_a.m20 * _b.m00)
-    res.m20 = res.m20 + (_a.m21 * _b.m10)
-    res.m20 = res.m20 + (_a.m22 * _b.m20)
-    res.m21 = res.m21 + (_a.m20 * _b.m01)
-    res.m21 = res.m21 + (_a.m21 * _b.m11)
-    res.m21 = res.m21 + (_a.m22 * _b.m21)
-    res.m22 = res.m22 + (_a.m20 * _b.m02)
-    res.m22 = res.m22 + (_a.m21 * _b.m12)
-    res.m22 = res.m22 + (_a.m22 * _b.m22)
+    res.m00 = (_a.m00 * _b.m00) + (_a.m01 * _b.m10) + (_a.m02 * _b.m20)
+    res.m01 = (_a.m00 * _b.m01) + (_a.m01 * _b.m11) + (_a.m02 * _b.m21)
+    res.m02 = (_a.m00 * _b.m02) + (_a.m01 * _b.m12) + (_a.m02 * _b.m22)
+    res.m10 = (_a.m10 * _b.m00) + (_a.m11 * _b.m10) + (_a.m12 * _b.m20)
+    res.m11 = (_a.m10 * _b.m01) + (_a.m11 * _b.m11) + (_a.m12 * _b.m21)
+    res.m12 = (_a.m10 * _b.m02) + (_a.m11 * _b.m12) + (_a.m12 * _b.m22)
+    res.m20 = (_a.m20 * _b.m00) + (_a.m21 * _b.m10) + (_a.m22 * _b.m20)
+    res.m21 = (_a.m20 * _b.m01) + (_a.m21 * _b.m11) + (_a.m22 * _b.m21)
+    res.m22 = (_a.m20 * _b.m02) + (_a.m21 * _b.m12) + (_a.m22 * _b.m22)
 
     return res
 end
 
 function lib:mat3_mult_vec3(_mat, _vec)
-    local res = {0,0,0}
-    local vec = {_vec.X, _vec.Y, _vec.Z}
-    for i = 0, 2 do
-        for j = 0, 2 do
-            local vthis = vec[j+1]
-            if not vthis then error("no vthis") end
-
-            local mthis = _mat[_matrix_at(i,j)]
-            if not mthis then error("no mthis") end
-
-            res[i+1] = res[i+1] + mthis * vthis
-        end
-    end
-    return vec3(res[1], res[2], res[3])
+    return vec3(
+		_vec.X*_mat.m00 + _vec.Y*_mat.m01 + _vec.Z*_mat.m02,
+		_vec.X*_mat.m10 + _vec.Y*_mat.m11 + _vec.Z*_mat.m12,
+		_vec.X*_mat.m20 + _vec.Y*_mat.m21 + _vec.Z*_mat.m22
+	)
 end
 
 function lib:mat3_inverse(_mat)
@@ -350,17 +324,11 @@ function lib:mat3_inverse(_mat)
 end
 
 function lib:mat3_transpose( _mat )
-    local res = lib:mat3x3()
-
-	-- naive approach
-	-- TODO: unroll
-    for row = 1, 3 do
-        for col = 1, 3 do
-            res[_matrix_at(col, row)] = _mat[_matrix_at(row, col)]
-        end
-    end
-
-	return res
+	return lib:mat3x3(
+        _mat.m00, _mat.m10, _mat.m20,
+        _mat.m01, _mat.m11, _mat.m21,
+        _mat.m02, _mat.m12, _mat.m22
+    )
 end
 
 function lib:mat3_transposed_inverse(_mat)
@@ -487,15 +455,26 @@ function lib:mat4_inverse( _m )
 end
 
 function lib:mat4_transpose( _mat )
+    if not _mat then error("cannot transpose nil") end
+    
     local res = lib:mat4()
 
-	-- naive approach
-	-- TODO: unroll
-    for row = 1, 4 do
-        for col = 1, 4 do
-            res[_matrix_at(col, row)] = _mat[_matrix_at(row, col)]
-        end
-    end
+	res.m00 = _mat.m00
+	res.m10 = _mat.m01
+	res.m20 = _mat.m02
+	res.m30 = _mat.m03
+	res.m01 = _mat.m10
+	res.m11 = _mat.m11
+	res.m21 = _mat.m12
+	res.m31 = _mat.m13
+	res.m02 = _mat.m20
+	res.m12 = _mat.m21
+	res.m22 = _mat.m22
+	res.m32 = _mat.m23
+	res.m03 = _mat.m30
+	res.m13 = _mat.m31
+	res.m23 = _mat.m32
+	res.m33 = _mat.m33
 
 	return res
 end
@@ -557,23 +536,27 @@ function lib:mat4_mult_mat4(_lhs, _rhs)
     if not _lhs then return _rhs end
     if not _rhs then return _lhs end
 
-    local res = lib:mat4()
-    for row = 0, 3 do
-	    for column = 0, 3 do
-            local v = 0
+	local res = lib:mat4()
 
-            for inner = 0, 3 do
-                local a_idx = "m" .. tostring(row) .. tostring(inner)
-                local b_idx = "m" .. tostring(inner) .. tostring(column )
-                
-                v = v + _lhs[a_idx] * _rhs[b_idx]
-                res["m" .. tostring(row) .. tostring(column)] = v
-            end
-        end
-    end
+	res.m00 = (_lhs.m00 * _rhs.m00) + (_lhs.m01 * _rhs.m10) + (_lhs.m02 * _rhs.m20) + (_lhs.m03 * _rhs.m30)
+	res.m01 = (_lhs.m00 * _rhs.m01) + (_lhs.m01 * _rhs.m11) + (_lhs.m02 * _rhs.m21) + (_lhs.m03 * _rhs.m31) 
+	res.m02 = (_lhs.m00 * _rhs.m02) + (_lhs.m01 * _rhs.m12) + (_lhs.m02 * _rhs.m22) + (_lhs.m03 * _rhs.m32)
+	res.m03 = (_lhs.m00 * _rhs.m03) + (_lhs.m01 * _rhs.m13) + (_lhs.m02 * _rhs.m23) + (_lhs.m03 * _rhs.m33)
+	res.m10 = (_lhs.m10 * _rhs.m00) + (_lhs.m11 * _rhs.m10) + (_lhs.m12 * _rhs.m20) + (_lhs.m13 * _rhs.m30)
+	res.m11 = (_lhs.m10 * _rhs.m01) + (_lhs.m11 * _rhs.m11) + (_lhs.m12 * _rhs.m21) + (_lhs.m13 * _rhs.m31)
+	res.m12 = (_lhs.m10 * _rhs.m02) + (_lhs.m11 * _rhs.m12) + (_lhs.m12 * _rhs.m22) + (_lhs.m13 * _rhs.m32)
+	res.m13 = (_lhs.m10 * _rhs.m03) + (_lhs.m11 * _rhs.m13) + (_lhs.m12 * _rhs.m23) + (_lhs.m13 * _rhs.m33)
+	res.m20 = (_lhs.m20 * _rhs.m00) + (_lhs.m21 * _rhs.m10) + (_lhs.m22 * _rhs.m20) + (_lhs.m23 * _rhs.m30)
+	res.m21 = (_lhs.m20 * _rhs.m01) + (_lhs.m21 * _rhs.m11) + (_lhs.m22 * _rhs.m21) + (_lhs.m23 * _rhs.m31)
+	res.m22 = (_lhs.m20 * _rhs.m02) + (_lhs.m21 * _rhs.m12) + (_lhs.m22 * _rhs.m22) + (_lhs.m23 * _rhs.m32)
+	res.m23 = (_lhs.m20 * _rhs.m03) + (_lhs.m21 * _rhs.m13) + (_lhs.m22 * _rhs.m23) + (_lhs.m23 * _rhs.m33)
+	res.m30 = (_lhs.m30 * _rhs.m00) + (_lhs.m31 * _rhs.m10) + (_lhs.m32 * _rhs.m20) + (_lhs.m33 * _rhs.m30)
+	res.m31 = (_lhs.m30 * _rhs.m01) + (_lhs.m31 * _rhs.m11) + (_lhs.m32 * _rhs.m21) + (_lhs.m33 * _rhs.m31)
+	res.m32 = (_lhs.m30 * _rhs.m02) + (_lhs.m31 * _rhs.m12) + (_lhs.m32 * _rhs.m22) + (_lhs.m33 * _rhs.m32)
+	res.m33 = (_lhs.m30 * _rhs.m03) + (_lhs.m31 * _rhs.m13) + (_lhs.m32 * _rhs.m23) + (_lhs.m33 * _rhs.m33)
+
     return res
 end
-
 -- wv::Matrix4x4::scale
 function lib:mat4_scale(_m, _scale)
 	return lib:mat4_mult_mat4( lib:mat4(
