@@ -5,6 +5,7 @@ def float2string(x, p):
 
 def write_faces(polygons, obj):
     me = obj.data
+    me.calc_tangents()
     
     verts = me.vertices
     uv_layer = me.uv_layers.active.data
@@ -15,23 +16,39 @@ def write_faces(polygons, obj):
         
         v = []
         n = []
+        t = []
+        s = []
         uv = []
         for loop_index in range(f.loop_start, f.loop_start + f.loop_total):
             uv.append(uv_layer[loop_index].uv.x)
             uv.append(uv_layer[loop_index].uv.y)
         
-        for i in f.vertices:
-            # position
-            v.append(verts[i].co[0])
-            v.append(verts[i].co[2])
-            v.append(-verts[i].co[1])
+        for vert in [me.loops[i] for i in f.loop_indices]:
+            tangent = vert.tangent
+            normal = vert.normal
+            bitangent = vert.bitangent_sign * normal.cross(tangent)
             # normal
-            n.append(verts[i].normal[0])
-            n.append(verts[i].normal[2])
-            n.append(-verts[i].normal[1])
+            n.append(vert.normal.x)
+            n.append(vert.normal.z)
+            n.append(-vert.normal.y)
+            # tangent
+            t.append(vert.tangent.x)
+            t.append(vert.tangent.z)
+            t.append(-vert.tangent.y),
+            # bitangent sign
+            s.append(vert.bitangent_sign)
+        
+        for vert_id, loop_id in zip(f.vertices, f.loop_indices):   
+            vert = me.vertices[vert_id]
+            loop = me.loops[loop_id]
+            # position
+            v.append(vert.co.x)
+            v.append(vert.co.z)
+            v.append(-vert.co.y)
+            
         
         c = (1.0,1.0,1.0)
-        if f.material_index >= 0:
+        if len(materials) > 0 and f.material_index >= 0:
             mat = materials[f.material_index]
             nodes = [i.type for i in mat.node_tree.nodes]
             if 'RGB' in nodes:
@@ -45,6 +62,8 @@ def write_faces(polygons, obj):
         face_str += '%d,%d,%d, ' % rgb
         face_str += "p={" + ','.join(float2string(i, 2) for i in v) + "}, "
         face_str += "n={" + ','.join(float2string(i, 2) for i in n) + "}, "
+        face_str += "t={" + ','.join(float2string(i, 2) for i in t) + "}, "
+        face_str += "s={" + ','.join(float2string(i, 1) for i in s) + "}, "
         face_str += "uv={" + ','.join(float2string(i, 2) for i in uv) + "}, "
         face_str += '}'
         polygons.append(face_str)

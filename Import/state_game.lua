@@ -37,7 +37,7 @@ function state_game:on_enter()
 		50    -- far clip
 	)
 	
-	demo_mesh = rmesh:require_drawlist("kanohi")	
+	demo_mesh = rmesh:require_drawlist("sphere")	
 	engine.camera_pos = vec3(0,0,3.5)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
@@ -187,45 +187,45 @@ local function material_func(_x, _y, _pixel) -- : color
 			p3 = rg3d:get_draw_call(index).args[3] 
 			p4 = rg3d:get_draw_call(index).args[4] -- position 4 (quad) OR shader input (triangle)
 			shader_input = rg3d:get_draw_call(index).args[5] or p4
+
+			local clip_space = rmath:vec3_from_screen(vec2(_x,_y),gdt.VideoChip0.Width,gdt.VideoChip0.Height)
 			
-			local u,v,w  = barycentric(vec2(_x,_y), p1, p2, p3)
+			local u,v,w  = barycentric(vec3(_x,_y,0), p1, p2, p3)
 
 			local a_texcoord  = fetch_attrib(shader_input.texcoords, u,v,w)
 			local pixel_coord = uv_to_pixel_coordinate(a_texcoord, 256, 256)
 
 			local a_normal  = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_normals,  u,v,w))
-			local a_tangent = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_tangents, u,v,w))
-			local bitangent = shader_input.bitangent_sign * rmath:vec3_cross(a_normal, a_tangent)
+--			local a_tangent = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_tangents, u,v,w))
+--			local bitangent = shader_input.bitangent_sign * rmath:vec3_cross(a_normal, a_tangent)
 
 			local tex_albedo = albedo_data:GetPixel(pixel_coord.X, pixel_coord.Y)
-			local tex_normal = normal_data:GetPixel(pixel_coord.X, pixel_coord.Y)
-			tex_normal = vec3(tex_normal.R-127.5, tex_normal.G-127.5, tex_normal.B-127.5)
-
-			local TBN    = rmath:mat3x3_from_vec3(a_tangent, bitangent, a_normal)
-			local normal = rmath:vec3_normalize(rmath:vec3_mult_mat3(tex_normal, TBN))
-			
-			light = rmath:vec3_dot(ms_light_dir, normal)
-
-			return Color(
-				light * tex_albedo.R,
-				light * tex_albedo.G,
-				light * tex_albedo.B
-			)
+			--return Color(u*255, v*255, w*255)
+			return colvec3(a_normal)
+			--return tex_albedo
+--			local tex_normal = normal_data:GetPixel(pixel_coord.X, pixel_coord.Y)
+--			tex_normal = vec3(tex_normal.R-127.5, tex_normal.G-127.5, tex_normal.B-127.5)
+--
+--			local TBN    = rmath:mat3x3_from_vec3(a_tangent, bitangent, a_normal)
+--			local normal = rmath:vec3_normalize(rmath:vec3_mult_mat3(tex_normal, TBN))
+--			light = rmath:vec3_dot(ms_light_dir, normal)
+--
+--			return Color(
+--				light * tex_albedo.R,
+--				light * tex_albedo.G,
+--				light * tex_albedo.B
+--			)
 		end
 	end
 end
 
 local function material_pass(spans, vis_pd, target_pd)
-	for y = spans.top, spans.bottom do
-		if y > 0 and y <= target_pd.Height then
-			if spans.spans[y] then
-				for x = spans.spans[y][1], spans.spans[y][2] do
-					if x > 0 and x <= target_pd.Width then
-						local frag_color = material_func(x,y,vis_pd:GetPixel(x,y))
-						if frag_color then
-							target_pd:SetPixel(x,y, frag_color)
-						end
-					end
+	for y = math.max(1, spans.top), math.min(target_pd.Height, spans.bottom) do
+		if spans.spans[y] then
+			for x = math.max(1, spans.spans[y][1]), math.min(target_pd.Width, spans.spans[y][2]) do
+				local frag_color = material_func(x,y,vis_pd:GetPixel(x,y))	
+				if frag_color then
+					target_pd:SetPixel(x,y, frag_color)
 				end
 			end
 		end
@@ -284,15 +284,16 @@ function state_game:draw()
 	gdt.VideoChip0:DrawText(vec2(0,gdt.VideoChip0.Height-8),font,"Up and down arrow to zoom in and out",color.white,color.clear)
 	
 	gdt.VideoChip0:RenderOnScreen()
-
+	
 	--gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),vis_renderbuffer,vis_renderbuffer.Width,vis_renderbuffer.Height)
 
 	local vis_pd = vis_renderbuffer:GetPixelData()
 	local target_pd = target_renderbuffer:GetPixelData()
-	
+
 	material_pass(spans, vis_pd, target_pd)
 
 	gdt.VideoChip0:BlitPixelData(vec2(0,0), target_pd)
+
 	if DEBUG == 1 then
 		gdt.VideoChip0:DrawText(vec2(0,8),font,"RENDER DEBUG MODE",color.white,color.black)
 	end

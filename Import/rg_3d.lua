@@ -525,6 +525,11 @@ local function clip_and_raster_triangle(
 	end
 
 	local s1, s2, s3
+	_shader_input.screen_space_vertices = {
+		rmath:vec3_to_screen(_tri[1], _render_width, _render_height, 0),
+		rmath:vec3_to_screen(_tri[2], _render_width, _render_height, 0),
+		rmath:vec3_to_screen(_tri[3], _render_width, _render_height, 0)
+	}
 
 	for i=1, #draw_list do
 		if g_raster_tri_func then 
@@ -647,6 +652,7 @@ function lib:raster_triangle(_tri, _render_width, _render_height, _shader_input)
 		t[1] = lib:view_to_clip(farclipped[i][1])
 		t[2] = lib:view_to_clip(farclipped[i][2])
 		t[3] = lib:view_to_clip(farclipped[i][3])
+		_shader_input.clip_space_vertices = t
 
 		clip_and_raster_triangle(t, _render_width, _render_height, nil, nil, nil, nil, _shader_input)
 	end

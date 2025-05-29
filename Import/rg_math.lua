@@ -115,6 +115,14 @@ function lib:vec3_to_screen(_vec,_width,_height,_depth)
     )
 end
 
+function lib:vec3_from_screen(_vec,_width,_height)
+    return vec3(
+        ((_vec.X / _width) - 0.5) * 2,
+        -((_vec.Y / _height) - 0.5) * 2,
+        0
+    )
+end
+
 function lib:vec3_mult(_lhs,_rhs)
 	return vec3(
 		_lhs.X * _rhs.X,
