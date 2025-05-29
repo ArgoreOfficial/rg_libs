@@ -36,8 +36,8 @@ function state_game:on_enter()
 		0.5,  -- near clip
 		50    -- far clip
 	)
-	--demo_mesh = rmesh:require_drawlist("kanohi_hau", vec3(0,-0.25,0.2), vec3(0,0,0))
-	demo_mesh = rmesh:require_drawlist("penta")	
+	
+	demo_mesh = rmesh:require_drawlist("kanohi")	
 	engine.camera_pos = vec3(0,0,3.5)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
@@ -131,24 +131,28 @@ local function uv_to_pixel_coordinate(_uv, _width, _height)
 end
 
 local function calculate_tb(_pos, _uvs, _normal)
+	local uv1 = vec2(_uvs[1].X, -_uvs[1].Y)
+	local uv2 = vec2(_uvs[2].X, -_uvs[2].Y)
+	local uv3 = vec2(_uvs[3].X, -_uvs[3].Y)
+
 	local edge1 = _pos[2] - _pos[1]
 	local edge2 = _pos[3] - _pos[1]
-	local deltaUV1 = _uvs[2] - _uvs[1]
-	local deltaUV2 = _uvs[3] - _uvs[1] 
+	local deltaUV1 = uv2 - uv1
+	local deltaUV2 = uv3 - uv1 
 
 	local f = 1.0 / (deltaUV1.X * deltaUV2.Y - deltaUV2.X * deltaUV1.Y)
 
-	local tangent = vec3(
+	local tangent = rmath:vec3_normalize(vec3(
 		f * (deltaUV2.Y * edge1.X - deltaUV1.Y * edge2.X),
 		f * (deltaUV2.Y * edge1.Y - deltaUV1.Y * edge2.Y),
 		f * (deltaUV2.Y * edge1.Z - deltaUV1.Y * edge2.Z)
-	)
+	))
 
-	local bitangent = vec3(
+	local bitangent = rmath:vec3_normalize(vec3(
 		f * (-deltaUV2.X * edge1.X + deltaUV1.X * edge2.X),
 		f * (-deltaUV2.X * edge1.Y + deltaUV1.X * edge2.Y),
 		f * (-deltaUV2.X * edge1.Z + deltaUV1.X * edge2.Z)
-	)
+	))
 
 	return tangent, bitangent
 end
@@ -191,78 +195,22 @@ local function material_func(_x, _y, _pixel) -- : color
 
 			local a_normal  = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_normals,  u,v,w))
 			local a_tangent = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_tangents, u,v,w))
-			local bitangent = rmath:vec3_normalize(rmath:vec3_cross(a_tangent, a_normal))
-			
+			local bitangent = shader_input.bitangent_sign * rmath:vec3_cross(a_normal, a_tangent)
+
 			local tex_albedo = albedo_data:GetPixel(pixel_coord.X, pixel_coord.Y)
 			local tex_normal = normal_data:GetPixel(pixel_coord.X, pixel_coord.Y)
-			tex_normal = vec3(
-				(tex_normal.R / 255) * 2.0 - 1.0, 
-				(tex_normal.G / 255) * 2.0 - 1.0, 
-				(tex_normal.B / 255) * 2.0 - 1.0
-			) 
+			tex_normal = vec3(tex_normal.R-127.5, tex_normal.G-127.5, tex_normal.B-127.5)
 
 			local TBN    = rmath:mat3x3_from_vec3(a_tangent, bitangent, a_normal)
-			local normal = rmath:vec3_normalize(rmath:mat3_mult_vec3(TBN, tex_normal))
+			local normal = rmath:vec3_normalize(rmath:vec3_mult_mat3(tex_normal, TBN))
 			
-			-- light = math.min(math.max(0.1, rmath:vec3_dot(ms_light_dir, N)),1)
-			light = math.min(math.max(0.1, rmath:vec3_dot(ms_light_dir, normal)),1)
+			light = rmath:vec3_dot(ms_light_dir, normal)
 
-			-- Do shadow pass
-			if STAGE_SHADOW then
-				-- TODO: shader input model space positions
-				local ws_fragpos = barycentric_lerp(
-					demo_mesh[shader_input.primitive_index][2][1][1],
-					demo_mesh[shader_input.primitive_index][2][1][2],
-					demo_mesh[shader_input.primitive_index][2][1][3],
-					u,v,w 
-				)
-
-				local function to_view(_vec)
-					local v4  = rmath:vec4(_vec.X, _vec.Y, _vec.Z, 1)
-					return rmath:mat4_transform(model_view_mat, v4)
-				end
-
-				local function view_to_clip(_vec)
-					local cv4 = rg3d:project(_vec)
-					return rmath:vec4(
-						cv4.X / cv4.W,
-						cv4.Y / cv4.W,
-						cv4.Z )
-				end
-
-				local function to_screen(_vec, _screen_width, _screen_height)
-					return rmath:vec3_to_screen(view_to_clip(to_view(_vec)), _screen_width, _screen_height)
-				end
-
-				local shadow_pixel_pos = to_screen(ws_fragpos, shadow_rb.Width, shadow_rb.Height)
-				
-
-				local this_prim = shader_input.primitive_index
-				local is_prim = false
-				for s_y = -2, 2 do
-					for s_x = -2, 2 do
-						local shadow_pixel = shadow_data:GetPixel(
-							math.min(math.max(1, shadow_pixel_pos.X + s_x + 0.5), shadow_rb.Width),
-							math.min(math.max(1, shadow_pixel_pos.Y + s_y + 0.5), shadow_rb.Height)
-						)
-						
-						local shadow_prim = bit32.bor(shadow_pixel.R, bit32.lshift(shadow_pixel.G,8), bit32.lshift(shadow_pixel.B,16))
-						
-						if shadow_prim == this_prim then is_prim = true end
-					end
-				end
-				
-				light = is_prim and light or 0.1
-			end
-
-			local frag = Color(
+			return Color(
 				light * tex_albedo.R,
 				light * tex_albedo.G,
 				light * tex_albedo.B
 			)
-
-			-- return frag
-			return colvec3(rmath:vec3_normalize(rmath:mat3_mult_vec3(TBN, vec3(0,1,0))))
 		end
 	end
 end
@@ -286,7 +234,7 @@ end
 
 function state_game:draw()
 	local time = 0 -- gdt.CPU0.Time
-	light_dir = vec3(0,1,0)
+	light_dir = vec3(0,0,-1)
 	
 	-- Model Setup
 	local model = nil

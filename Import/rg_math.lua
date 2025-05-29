@@ -302,6 +302,15 @@ function lib:mat3_mult_vec3(_mat, _vec)
 	)
 end
 
+function lib:vec3_mult_mat3(_vec, _mat)
+	return vec3(
+		_vec.X*_mat.m00 + _vec.Y*_mat.m10 + _vec.Z*_mat.m20,
+		_vec.X*_mat.m01 + _vec.Y*_mat.m11 + _vec.Z*_mat.m21,
+		_vec.X*_mat.m02 + _vec.Y*_mat.m12 + _vec.Z*_mat.m22
+	)
+end
+
+
 function lib:mat3_inverse(_mat)
     local ret = lib:mat3x3()
     local det = _mat.m00 * (_mat.m11 * _mat.m22 - _mat.m21 * _mat.m12) -
