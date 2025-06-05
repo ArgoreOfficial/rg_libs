@@ -113,8 +113,8 @@ local function barycentric_lerp(_a,_b,_c, _u,_v,_w)
 	return _a*_u + _b*_v + _c*_w
 end
 
-local function fetch_attrib(_attr,_u,_v,_w)
-	return barycentric_lerp(_attr[1],_attr[2],_attr[3],_u,_v,_w)
+local function fetch_attrib(_attr,_bary)
+	return barycentric_lerp(_attr[1],_attr[2],_attr[3],_bary.X,_bary.Y,_bary.Z) * _bary.W
 end
 
 local index = 0
@@ -231,6 +231,25 @@ local function screen_to_clip(_vec2, _width, _height)
 	)
 end
 
+local function compute_true_barycentric(_cs_point, _cs1, _cs2, _cs3, _invz1, _invz2, _invz3)
+
+	local u,v,w = barycentric(
+		_cs_point, 
+		vec3(_cs1.X, _cs1.Y, 0), 
+		vec3(_cs2.X, _cs2.Y, 0), 
+		vec3(_cs3.X, _cs3.Y, 0)
+	)
+
+	local z = 1 / (u * _invz1 + v * _invz2 + w * _invz3)
+
+	return rmath:vec4(
+		u / _cs1.Z, 
+		v / _cs2.Z, 
+		w / _cs3.Z, 
+		z
+	)
+end
+
 local function material_func2(_x, _y, _pixel) -- : color
 	index = bit32.bor(_pixel.R, bit32.lshift(_pixel.G,8), bit32.lshift(_pixel.B,16))
 
@@ -243,29 +262,10 @@ local function material_func2(_x, _y, _pixel) -- : color
 		
 		local clip_space_point = rmath:vec3_from_screen(vec2(_x,_y), gdt.VideoChip0.Width, gdt.VideoChip0.Height)
 		local cs = shader_input.clip_space_vertices
-		local u,v,w = barycentric(
-			clip_space_point, 
-			vec3(cs[1].X, cs[1].Y, 0), 
-			vec3(cs[2].X, cs[2].Y, 0), 
-			vec3(cs[3].X, cs[3].Y, 0)
-		)
-		
-		--local a_texcoord  = fetch_attrib(shader_input.texcoords, u,v,w)
-		
-		
-		local inv_z_1 = 1 / cs[1].Z
-		local inv_z_2 = 1 / cs[2].Z
-		local inv_z_3 = 1 / cs[3].Z
-		local z = 1 / (u * inv_z_1 + v * inv_z_2 + w * inv_z_3)
+		local bary = compute_true_barycentric(clip_space_point, cs[1], cs[2], cs[3],shader_input.inv_Zs[1],shader_input.inv_Zs[2],shader_input.inv_Zs[3])
 
-		local a_texcoord = fetch_attrib({
-			shader_input.texcoords[1] / cs[1].Z,
-			shader_input.texcoords[2] / cs[2].Z,
-			shader_input.texcoords[3] / cs[3].Z
-		}, u,v,w)
+		local a_texcoord = fetch_attrib(shader_input.texcoords, bary)
 		
-		a_texcoord = a_texcoord * z
-
 		local pixel_coord = uv_to_pixel_coordinate(a_texcoord, 256, 256)
 		
 		local tex_color = albedo_data:GetPixel(pixel_coord.X, pixel_coord.Y)

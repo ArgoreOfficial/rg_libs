@@ -623,6 +623,11 @@ function lib:raster_triangle(_tri, _render_width, _render_height, _shader_input)
 		lib:view_to_clip(p2), 
 		lib:view_to_clip(p3) 
 	}
+	_shader_input.inv_Zs = {
+		1 / _shader_input.clip_space_vertices[ 1 ].Z,
+		1 / _shader_input.clip_space_vertices[ 2 ].Z,
+		1 / _shader_input.clip_space_vertices[ 3 ].Z
+	}
 
 	local near_count = count_under_value(-g_near, p1.Z, p2.Z, p3.Z)
 	if near_count == 0 then return end -- behind near plane
