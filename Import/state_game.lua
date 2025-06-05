@@ -196,7 +196,7 @@ local function material_func(_x, _y, _pixel) -- : color
 				vec3(cs[2].X, cs[2].Y, 0), 
 				vec3(cs[3].X, cs[3].Y, 0)
 			)
-			
+
 			local a_texcoord  = fetch_attrib(shader_input.texcoords, u,v,w)
 			local pixel_coord = uv_to_pixel_coordinate(a_texcoord, 256, 256)
 
@@ -250,12 +250,27 @@ local function material_func2(_x, _y, _pixel) -- : color
 			vec3(cs[3].X, cs[3].Y, 0)
 		)
 		
-		local a_texcoord  = fetch_attrib(shader_input.texcoords, u,v,w)
+		--local a_texcoord  = fetch_attrib(shader_input.texcoords, u,v,w)
+		
+		
+		local inv_z_1 = 1 / cs[1].Z
+		local inv_z_2 = 1 / cs[2].Z
+		local inv_z_3 = 1 / cs[3].Z
+		local z = 1 / (u * inv_z_1 + v * inv_z_2 + w * inv_z_3)
+
+		local a_texcoord = fetch_attrib({
+			shader_input.texcoords[1] / cs[1].Z,
+			shader_input.texcoords[2] / cs[2].Z,
+			shader_input.texcoords[3] / cs[3].Z
+		}, u,v,w)
+		
+		a_texcoord = a_texcoord * z
+
 		local pixel_coord = uv_to_pixel_coordinate(a_texcoord, 256, 256)
 		
 		local tex_color = albedo_data:GetPixel(pixel_coord.X, pixel_coord.Y)
-
-		return tex_color -- colvec3(vec3(u,v,w))
+		
+		return tex_color -- colvec3(vec3(r,g,b)) -- colvec3(vec3(u,v,w))
 	end
 end
 

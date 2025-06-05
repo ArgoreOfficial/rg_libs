@@ -307,7 +307,8 @@ function lib:project( _vec )
 			_vec.X * g_perspective_m00,
 			_vec.Y * g_perspective_e,
 			_vec.Z * g_perspective_m22 + _vec.W * g_perspective_m32,
-		   -_vec.Z )
+		   -_vec.Z 
+		)
     else
         return rmath:vec4() -- ortho
     end
@@ -323,7 +324,9 @@ function lib:view_to_clip(_vec)
 	return rmath:vec4(
 		cv4.X / cv4.W,
 		cv4.Y / cv4.W,
-		cv4.Z )
+		cv4.Z,
+		cv4.W
+	 )
 end
 
 function lib:to_clip(_vec)
@@ -615,7 +618,11 @@ function lib:raster_triangle(_tri, _render_width, _render_height, _shader_input)
 	local p3 = lib:to_view(_tri[3])
 	local triangle = {p1,p2,p3}
 	_shader_input = _shader_input or {}
-	_shader_input.clip_space_vertices = { lib:view_to_clip(p1), lib:view_to_clip(p2), lib:view_to_clip(p3) }
+	_shader_input.clip_space_vertices = { 
+		lib:view_to_clip(p1), 
+		lib:view_to_clip(p2), 
+		lib:view_to_clip(p3) 
+	}
 
 	local near_count = count_under_value(-g_near, p1.Z, p2.Z, p3.Z)
 	if near_count == 0 then return end -- behind near plane
@@ -649,7 +656,7 @@ function lib:raster_triangle(_tri, _render_width, _render_height, _shader_input)
 		local t = {}
 	
 		_shader_input.light_intensity = rmath:vec3_dot(g_view_space_light_dir, rmath:vec3_normalize(vs_face_normal))
-		
+
 		t[1] = lib:view_to_clip(farclipped[i][1])
 		t[2] = lib:view_to_clip(farclipped[i][2])
 		t[3] = lib:view_to_clip(farclipped[i][3])
