@@ -37,7 +37,7 @@ function state_game:on_enter()
 		50    -- far clip
 	)
 	
-	demo_mesh = rmesh:require_drawlist("sphere")	
+	demo_mesh = rmesh:require_drawlist("cube")	
 	engine.camera_pos = vec3(0,0,3.5)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
@@ -188,10 +188,15 @@ local function material_func(_x, _y, _pixel) -- : color
 			p4 = rg3d:get_draw_call(index).args[4] -- position 4 (quad) OR shader input (triangle)
 			shader_input = rg3d:get_draw_call(index).args[5] or p4
 
-			local clip_space = rmath:vec3_from_screen(vec2(_x,_y),gdt.VideoChip0.Width,gdt.VideoChip0.Height)
+			local clip_space_point = rmath:vec3_from_screen(vec2(_x,_y), gdt.VideoChip0.Width, gdt.VideoChip0.Height)
+			local cs = shader_input.clip_space_vertices
+			local u,v,w = barycentric(
+				clip_space_point, 
+				vec3(cs[1].X, cs[1].Y, 0), 
+				vec3(cs[2].X, cs[2].Y, 0), 
+				vec3(cs[3].X, cs[3].Y, 0)
+			)
 			
-			local u,v,w  = barycentric(vec3(_x,_y,0), p1, p2, p3)
-
 			local a_texcoord  = fetch_attrib(shader_input.texcoords, u,v,w)
 			local pixel_coord = uv_to_pixel_coordinate(a_texcoord, 256, 256)
 
@@ -219,11 +224,46 @@ local function material_func(_x, _y, _pixel) -- : color
 	end
 end
 
+local function screen_to_clip(_vec2, _width, _height)
+	return vec2(
+		(_vec2.X / _width ) * 2.0 - 1.0,
+		(_vec2.Y / _height) * 2.0 - 1.0
+	)
+end
+
+local function material_func2(_x, _y, _pixel) -- : color
+	index = bit32.bor(_pixel.R, bit32.lshift(_pixel.G,8), bit32.lshift(_pixel.B,16))
+
+	if index > 0 then 
+		p1 = rg3d:get_draw_call(index).args[1] 
+		p2 = rg3d:get_draw_call(index).args[2] 
+		p3 = rg3d:get_draw_call(index).args[3] 
+		p4 = rg3d:get_draw_call(index).args[4] -- position 4 (quad) OR shader input (triangle)
+		shader_input = rg3d:get_draw_call(index).args[5] or p4
+		
+		local clip_space_point = rmath:vec3_from_screen(vec2(_x,_y), gdt.VideoChip0.Width, gdt.VideoChip0.Height)
+		local cs = shader_input.clip_space_vertices
+		local u,v,w = barycentric(
+			clip_space_point, 
+			vec3(cs[1].X, cs[1].Y, 0), 
+			vec3(cs[2].X, cs[2].Y, 0), 
+			vec3(cs[3].X, cs[3].Y, 0)
+		)
+		
+		local a_texcoord  = fetch_attrib(shader_input.texcoords, u,v,w)
+		local pixel_coord = uv_to_pixel_coordinate(a_texcoord, 256, 256)
+		
+		local tex_color = albedo_data:GetPixel(pixel_coord.X, pixel_coord.Y)
+
+		return tex_color -- colvec3(vec3(u,v,w))
+	end
+end
+
 local function material_pass(spans, vis_pd, target_pd)
 	for y = math.max(1, spans.top), math.min(target_pd.Height, spans.bottom) do
 		if spans.spans[y] then
 			for x = math.max(1, spans.spans[y][1]), math.min(target_pd.Width, spans.spans[y][2]) do
-				local frag_color = material_func(x,y,vis_pd:GetPixel(x,y))	
+				local frag_color = material_func2(x,y,vis_pd:GetPixel(x,y))	
 				if frag_color then
 					target_pd:SetPixel(x,y, frag_color)
 				end

@@ -615,6 +615,7 @@ function lib:raster_triangle(_tri, _render_width, _render_height, _shader_input)
 	local p3 = lib:to_view(_tri[3])
 	local triangle = {p1,p2,p3}
 	_shader_input = _shader_input or {}
+	_shader_input.clip_space_vertices = { lib:view_to_clip(p1), lib:view_to_clip(p2), lib:view_to_clip(p3) }
 
 	local near_count = count_under_value(-g_near, p1.Z, p2.Z, p3.Z)
 	if near_count == 0 then return end -- behind near plane
@@ -652,8 +653,7 @@ function lib:raster_triangle(_tri, _render_width, _render_height, _shader_input)
 		t[1] = lib:view_to_clip(farclipped[i][1])
 		t[2] = lib:view_to_clip(farclipped[i][2])
 		t[3] = lib:view_to_clip(farclipped[i][3])
-		_shader_input.clip_space_vertices = t
-
+		
 		clip_and_raster_triangle(t, _render_width, _render_height, nil, nil, nil, nil, _shader_input)
 	end
 end
