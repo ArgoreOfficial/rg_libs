@@ -131,6 +131,10 @@ function lib:vec3_mult(_lhs,_rhs)
 	)
 end
 
+function lib:vec3_to_color(_vec)
+	return Color(_vec.X, _vec.Y, _vec.Z)
+end
+
 function lib:rot_to_dir(_pitch, _yaw)
 	return vec3(
 		math.cos(_yaw)*math.cos(_pitch),
