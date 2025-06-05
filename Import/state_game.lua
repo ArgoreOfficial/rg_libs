@@ -149,11 +149,12 @@ local function material_func(_x, _y, _pixel, _index)
 			local TBN    = rmath:mat3x3_from_vec3(a_tangent, bitangent, a_normal)
 			local normal = rmath:vec3_normalize(rmath:vec3_mult_mat3(tex_normal, TBN))
 			light = rmath:vec3_dot(ms_light_dir, normal)
+			light = math.max(0, math.min(1, light))
 
 			-- light lerp
 			local vec3_col = vec3(tex_albedo.R, tex_albedo.G, tex_albedo.B)
-			local frag_color = rmath:lerp(clear_color, vec3_col, math.max(0, math.min(1, light)))
-			
+			local frag_color = rmath:lerp(clear_color, vec3_col, light)
+
 			return Color(frag_color.X,frag_color.Y,frag_color.Z)
 		end
 	end
@@ -184,7 +185,7 @@ function state_game:on_enter()
 		50    -- far clip
 	)
 	
-	demo_mesh = rmesh:require_drawlist("helm")	
+	demo_mesh = rmesh:require_drawlist("penta")	
 	engine.camera_pos = vec3(0,0,3.5)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
