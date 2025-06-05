@@ -37,7 +37,7 @@ function state_game:on_enter()
 		50    -- far clip
 	)
 	
-	demo_mesh = rmesh:require_drawlist("cube")	
+	demo_mesh = rmesh:require_drawlist("penta")	
 	engine.camera_pos = vec3(0,0,3.5)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
@@ -120,15 +120,8 @@ end
 local index = 0
 local shader_input = nil
 local light = 1
-local p1,p2,p3,p4
 
 local STAGE_SHADOW = false
-
-local function uv_to_pixel_coordinate(_uv, _width, _height)
-	_uv = vec2((_uv.X % 1) * _width, (_uv.Y % 1) * _height)
-	_uv = vec2(math.floor(_uv.X % _width), math.floor(_uv.Y % _width))
-	return vec2(_uv.X+1, _uv.Y+1)
-end
 
 local function calculate_tb(_pos, _uvs, _normal)
 	local uv1 = vec2(_uvs[1].X, -_uvs[1].Y)
@@ -165,71 +158,6 @@ local function colvec3(_vec)
 	)
 end
 
-local function material_func(_x, _y, _pixel) -- : color
-	if DEBUG == 1 then
-		if _pixel.R + _pixel.G + _pixel.B == 0 then
-			return color.white
-		else
-			return color.black
-		end
-	elseif DEBUG == 2 then
-		return Color(
-			rmath:lerp(_pixel.R, 255, 0.5), 
-			rmath:lerp(_pixel.G, 255, 0.5), 
-			rmath:lerp(_pixel.B, 255, 0.5)
-		)
-	else
-		index = bit32.bor(_pixel.R, bit32.lshift(_pixel.G,8), bit32.lshift(_pixel.B,16))
-
-		if index > 0 then 
-			p1 = rg3d:get_draw_call(index).args[1] 
-			p2 = rg3d:get_draw_call(index).args[2] 
-			p3 = rg3d:get_draw_call(index).args[3] 
-			p4 = rg3d:get_draw_call(index).args[4] -- position 4 (quad) OR shader input (triangle)
-			shader_input = rg3d:get_draw_call(index).args[5] or p4
-
-			local clip_space_point = rmath:vec3_from_screen(vec2(_x,_y), gdt.VideoChip0.Width, gdt.VideoChip0.Height)
-			local cs = shader_input.clip_space_vertices
-			local u,v,w = barycentric(
-				clip_space_point, 
-				vec3(cs[1].X, cs[1].Y, 0), 
-				vec3(cs[2].X, cs[2].Y, 0), 
-				vec3(cs[3].X, cs[3].Y, 0)
-			)
-
-			local a_texcoord  = fetch_attrib(shader_input.texcoords, u,v,w)
-			local pixel_coord = uv_to_pixel_coordinate(a_texcoord, 256, 256)
-
-			local a_normal  = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_normals,  u,v,w))
---			local a_tangent = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_tangents, u,v,w))
---			local bitangent = shader_input.bitangent_sign * rmath:vec3_cross(a_normal, a_tangent)
-
-			local tex_albedo = albedo_data:GetPixel(pixel_coord.X, pixel_coord.Y)
-			--return Color(u*255, v*255, w*255)
-			return colvec3(a_normal)
-			--return tex_albedo
---			local tex_normal = normal_data:GetPixel(pixel_coord.X, pixel_coord.Y)
---			tex_normal = vec3(tex_normal.R-127.5, tex_normal.G-127.5, tex_normal.B-127.5)
---
---			local TBN    = rmath:mat3x3_from_vec3(a_tangent, bitangent, a_normal)
---			local normal = rmath:vec3_normalize(rmath:vec3_mult_mat3(tex_normal, TBN))
---			light = rmath:vec3_dot(ms_light_dir, normal)
---
---			return Color(
---				light * tex_albedo.R,
---				light * tex_albedo.G,
---				light * tex_albedo.B
---			)
-		end
-	end
-end
-
-local function screen_to_clip(_vec2, _width, _height)
-	return vec2(
-		(_vec2.X / _width ) * 2.0 - 1.0,
-		(_vec2.Y / _height) * 2.0 - 1.0
-	)
-end
 
 local function compute_true_barycentric(_cs_point, _cs1, _cs2, _cs3, _invz1, _invz2, _invz3)
 
@@ -250,27 +178,70 @@ local function compute_true_barycentric(_cs_point, _cs1, _cs2, _cs3, _invz1, _in
 	)
 end
 
-local function material_func2(_x, _y, _pixel) -- : color
-	index = bit32.bor(_pixel.R, bit32.lshift(_pixel.G,8), bit32.lshift(_pixel.B,16))
+local function texture(_texture, _texcoord)
+	local pixel_x = (_texcoord.X * (_texture.Width )) + 1
+	local pixel_y = (_texcoord.Y * (_texture.Height)) + 1
+	
+	-- clamp 
+	while pixel_x <= 0 do pixel_x = pixel_x + _texture.Width  end
+	while pixel_y <= 0 do pixel_y = pixel_y + _texture.Height end
 
-	if index > 0 then 
-		p1 = rg3d:get_draw_call(index).args[1] 
-		p2 = rg3d:get_draw_call(index).args[2] 
-		p3 = rg3d:get_draw_call(index).args[3] 
-		p4 = rg3d:get_draw_call(index).args[4] -- position 4 (quad) OR shader input (triangle)
-		shader_input = rg3d:get_draw_call(index).args[5] or p4
-		
-		local clip_space_point = rmath:vec3_from_screen(vec2(_x,_y), gdt.VideoChip0.Width, gdt.VideoChip0.Height)
-		local cs = shader_input.clip_space_vertices
-		local bary = compute_true_barycentric(clip_space_point, cs[1], cs[2], cs[3],shader_input.inv_Zs[1],shader_input.inv_Zs[2],shader_input.inv_Zs[3])
+	while pixel_x > _texture.Width  do pixel_x = pixel_x - _texture.Width  end
+	while pixel_y > _texture.Height do pixel_y = pixel_y - _texture.Height end
 
-		local a_texcoord = fetch_attrib(shader_input.texcoords, bary)
-		
-		local pixel_coord = uv_to_pixel_coordinate(a_texcoord, 256, 256)
-		
-		local tex_color = albedo_data:GetPixel(pixel_coord.X, pixel_coord.Y)
-		
-		return tex_color -- colvec3(vec3(r,g,b)) -- colvec3(vec3(u,v,w))
+	return _texture:GetPixel(pixel_x, pixel_y)
+end
+
+local clear_color = vec3(0,0,0)
+if not engine.IS_RG then
+	clear_color = vec3(29,29,29)
+end
+
+local function material_func(_x, _y, _pixel) -- : color
+	if DEBUG == 1 then
+		if _pixel.R + _pixel.G + _pixel.B == 0 then
+			return color.white
+		else
+			return color.black
+		end
+	elseif DEBUG == 2 then
+		return Color(
+			rmath:lerp(_pixel.R, 255, 0.5), 
+			rmath:lerp(_pixel.G, 255, 0.5), 
+			rmath:lerp(_pixel.B, 255, 0.5)
+		)
+	else
+		index = bit32.bor(_pixel.R, bit32.lshift(_pixel.G,8), bit32.lshift(_pixel.B,16))
+
+		if index > 0 then 
+			shader_input = rg3d:get_draw_call(index).args[5] or rg3d:get_draw_call(index).args[4]
+
+			-- triangle fetch
+			local clip_space_point = rmath:vec3_from_screen(vec2(_x,_y), gdt.VideoChip0.Width, gdt.VideoChip0.Height)
+			local cs = shader_input.clip_space_vertices
+			local bary = compute_true_barycentric(clip_space_point, cs[1], cs[2], cs[3],shader_input.inv_Zs[1],shader_input.inv_Zs[2],shader_input.inv_Zs[3])
+
+			-- attribute fetch
+			local a_texcoord  = fetch_attrib(shader_input.texcoords, bary)
+			local a_normal  = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_normals,  bary))
+			local a_tangent = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_tangents, bary))
+			local bitangent = shader_input.bitangent_sign * rmath:vec3_cross(a_normal, a_tangent)
+
+			-- texture fetch
+			local tex_albedo = texture(albedo_data, a_texcoord)
+			local tex_normal = texture(normal_data, a_texcoord)
+			tex_normal = vec3(tex_normal.R-127.5, tex_normal.G-127.5, tex_normal.B-127.5)
+
+			-- normal calculation
+			local TBN    = rmath:mat3x3_from_vec3(a_tangent, bitangent, a_normal)
+			local normal = rmath:vec3_normalize(rmath:vec3_mult_mat3(tex_normal, TBN))
+			light = rmath:vec3_dot(ms_light_dir, normal)
+
+			-- light lerp
+			local vec3_col = vec3(tex_albedo.R, tex_albedo.G, tex_albedo.B)
+			local frag_color = rmath:lerp(clear_color, vec3_col, math.max(0, math.min(1, light)))
+			return Color(frag_color.X,frag_color.Y,frag_color.Z)
+		end
 	end
 end
 
@@ -278,7 +249,7 @@ local function material_pass(spans, vis_pd, target_pd)
 	for y = math.max(1, spans.top), math.min(target_pd.Height, spans.bottom) do
 		if spans.spans[y] then
 			for x = math.max(1, spans.spans[y][1]), math.min(target_pd.Width, spans.spans[y][2]) do
-				local frag_color = material_func2(x,y,vis_pd:GetPixel(x,y))	
+				local frag_color = material_func(x,y,vis_pd:GetPixel(x,y))	
 				if frag_color then
 					target_pd:SetPixel(x,y, frag_color)
 				end
