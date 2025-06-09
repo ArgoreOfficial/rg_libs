@@ -13,6 +13,7 @@ local target_renderbuffer = gdt.VideoChip0.RenderBuffers[2]
 local texture_rb = gdt.VideoChip0.RenderBuffers[3]
 local normal_rb = gdt.VideoChip0.RenderBuffers[4]
 local shadow_rb = gdt.VideoChip0.RenderBuffers[5]
+local test_buffer = {}
 
 local demo_mesh = {}
 local albedo_data = {}
@@ -36,7 +37,7 @@ local font = gdt.ROM.System.SpriteSheets["StandardFont"]
 local shader_input = nil
 local light = 1
 
-local STAGE_SHADOW = false
+local STAGE_SHADOW = true
 
 local clear_color = vec3(0,0,0)
 if not engine.IS_RG then
@@ -134,6 +135,21 @@ local function material_func(_x, _y, _pixel, _index)
 			local cs = shader_input.clip_space_vertices
 			local bary = compute_true_barycentric(clip_space_point, cs[1], cs[2], cs[3],shader_input.inv_Zs[1],shader_input.inv_Zs[2],shader_input.inv_Zs[3])
 
+			local world_space_point = fetch_attrib(demo_mesh[shader_input.primitive_index][2][1], bary)
+			local shadow_space_point = rmath:mat4_transform(model_view_mat, world_space_point)
+			
+			if shadow_space_point.X > -1 and shadow_space_point.X < 1 then
+				if shadow_space_point.Y > -1 and shadow_space_point.Y < 1 then
+					local shadow_point = rmath:vec3_to_screen(shadow_space_point, shadow_rb.Width, shadow_rb.Height)
+					local shadow_pixel = shadow_data:GetPixel(shadow_point.X, shadow_point.Y)
+					local shadow_index = packUnorm3x8(shadow_pixel)
+					shadow_data:SetPixel(shadow_point.X, shadow_point.Y, color.white)
+					
+					-- if shader_input.primitive_index == shadow_index then return shadow_pixel end
+					return shadow_pixel
+				end
+			end
+
 			-- attribute fetch
 			local a_texcoord  = fetch_attrib(shader_input.texcoords, bary)
 			local a_normal  = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_normals,  bary))
@@ -196,10 +212,14 @@ function state_game:on_enter()
 	gdt.VideoChip0:SetRenderBufferSize(2, gdt.VideoChip0.Width, gdt.VideoChip0.Height) -- target buffer
 	gdt.VideoChip0:SetRenderBufferSize(3, 256, 256) -- albedo texture buffer
 	gdt.VideoChip0:SetRenderBufferSize(4, 256, 256) -- normal texture buffer
-	gdt.VideoChip0:SetRenderBufferSize(5, 256, 256) -- shadow buffer
+	gdt.VideoChip0:SetRenderBufferSize(5, 256*4, 256*4) -- shadow buffer
 	
 	albedo_data = require("TX_penta_albedo"):toPixelData(texture_rb:GetPixelData())
 	normal_data = require("TX_penta_normal"):toPixelData(normal_rb:GetPixelData())
+
+	for i = 1, gdt.VideoChip0.Width * gdt.VideoChip0.Height do
+		test_buffer[i] = 0
+	end
 end
 
 function state_game:on_exit()
@@ -236,7 +256,7 @@ function state_game:update(_delta_time)
 end
 
 function state_game:draw()
-	light_dir = vec3(0,0,-1)
+	light_dir = vec3(0,0,1)
 	
 	-- Model Setup
 	local model = nil
@@ -287,14 +307,19 @@ function state_game:draw()
 	
 	gdt.VideoChip0:RenderOnScreen()
 	
-	--gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),vis_renderbuffer,vis_renderbuffer.Width,vis_renderbuffer.Height)
-
 	local vis_pd = vis_renderbuffer:GetPixelData()
 	local target_pd = target_renderbuffer:GetPixelData()
 
 	material_pass(spans, vis_pd, target_pd)
 
 	gdt.VideoChip0:BlitPixelData(vec2(0,0), target_pd)
+	
+	gdt.VideoChip0:RenderOnBuffer(5)
+	gdt.VideoChip0:BlitPixelData(vec2(0,0), shadow_data)
+	gdt.VideoChip0:RenderOnScreen()
+	
+	
+	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),shadow_rb,64,64)
 
 	if DEBUG == 1 then
 		gdt.VideoChip0:DrawText(vec2(0,8),font,"RENDER DEBUG MODE",color.white,color.black)

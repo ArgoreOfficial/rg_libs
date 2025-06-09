@@ -187,7 +187,12 @@ function lib:get_view_mat()
 end
 
 function lib:get_model_view_mat()
-	return g_model_view_mat
+	local t = rmath:mat4()
+	if not g_model_view_mat then return t end
+	for key, value in pairs(g_model_view_mat) do
+		t[key] = value
+	end
+	return t
 end
 
 function lib:push_perspective( _aspect, _fov, _near, _far )
@@ -315,8 +320,7 @@ function lib:project( _vec )
 end
 
 function lib:to_view(_vec)
-	local v4  = rmath:vec4(_vec.X, _vec.Y, _vec.Z, 1)
-	return rmath:mat4_transform(g_model_view_mat, v4)
+	return rmath:mat4_transform(g_model_view_mat, _vec)
 end
 
 function lib:view_to_clip(_vec)

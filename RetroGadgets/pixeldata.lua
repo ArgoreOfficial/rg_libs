@@ -14,8 +14,15 @@ function methods:GetPixel(_x,_y)
 end
 
 function methods:SetPixel(_x, _y, _color)
+    if _x <= 0 or _y <= 0 or _x > self.Width or _y > self.Height then
+        error("out of range: " .. _x .. "," .. _y)
+    end
+
+    local x = math.max(0, math.min(_x-1, self.Width-1))
+    local y = math.max(0, math.min(_y-1, self.Height-1))
+
     self._ImageData:setPixel(
-        _x-1, _y-1, 
+        x, y, 
         _color.R / 255, 
         _color.G / 255, 
         _color.B / 255, 
