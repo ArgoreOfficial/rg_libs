@@ -77,6 +77,10 @@ function lib:lerp(_a, _b, _t)
 	return _a + (_b - _a) * _t
 end
 
+function lib:map_range(_input, _input_start, _input_end, _output_start, _output_end)
+    return _output_start + ((_output_end - _output_start) / (_input_end - _input_start)) * (_input - _input_start)
+end
+
 --------------------------------------------------------
 --[[  Vector 3                                        ]]
 --------------------------------------------------------
@@ -258,6 +262,29 @@ local function _matrix_generic_mult(_a, _b)
         end
     end
     return res
+end
+
+
+--------------------------------------------------------
+--[[  Matrix 2x2                                      ]]
+--------------------------------------------------------
+
+function lib:mat2(_00, _01, _10, _11)
+    return {
+        m00 = _00 or 1, m01 = _01 or 0,
+        m10 = _10 or 0, m11 = _11 or 1
+    }
+end
+
+function lib:mat2_vec2(_0,_1)
+    return lib:mat2(
+        _0.X, _0.Y,
+        _1.X, _1.Y
+    )
+end
+
+function lib:mat2_determinant(_mat)
+    return (_mat.m00 * _mat.m11) - (_mat.m01 * _mat.m10)
 end
 
 --------------------------------------------------------

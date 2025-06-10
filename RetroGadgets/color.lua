@@ -8,6 +8,13 @@ function _G.Color(r,g,b)
     return ColorRGBA(r,g,b,255)
 end
 
+function color_meta.__eq(_lhs,_rhs)
+    return 
+        _lhs.R == _rhs.R and
+        _lhs.G == _rhs.G and
+        _lhs.B == _rhs.B
+end
+
 _G.color = {
     clear   = ColorRGBA(0, 0, 0, 0),
     black   = Color(  0,   0,   0),
