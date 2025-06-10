@@ -136,19 +136,41 @@ local function material_func(_x, _y, _pixel, _index)
 			local bary = compute_true_barycentric(clip_space_point, cs[1], cs[2], cs[3],shader_input.inv_Zs[1],shader_input.inv_Zs[2],shader_input.inv_Zs[3])
 
 			local world_space_point = fetch_attrib(demo_mesh[shader_input.primitive_index][2][1], bary)
-			local shadow_space_point = rmath:mat4_transform(model_view_mat, world_space_point)
-			
-			if shadow_space_point.X > -1 and shadow_space_point.X < 1 then
-				if shadow_space_point.Y > -1 and shadow_space_point.Y < 1 then
-					local shadow_point = rmath:vec3_to_screen(shadow_space_point, shadow_rb.Width, shadow_rb.Height)
-					local shadow_pixel = shadow_data:GetPixel(shadow_point.X, shadow_point.Y)
-					local shadow_index = packUnorm3x8(shadow_pixel)
-					shadow_data:SetPixel(shadow_point.X, shadow_point.Y, color.white)
-					
-					-- if shader_input.primitive_index == shadow_index then return shadow_pixel end
-					return shadow_pixel
+
+			local shadow_point = rg3d:to_screen(world_space_point, shadow_rb.Width, shadow_rb.Height)
+
+			local in_shadow = true
+			for offset_y = -1, 1 do
+				for offset_x = -1, 1 do
+					shadow_point = shadow_point + vec2(offset_x, offset_y)
+					if in_shadow then
+						if shadow_point.X >= 1 and shadow_point.X < shadow_rb.Width and shadow_point.Y >= 1 and shadow_point.Y < shadow_rb.Height then
+							
+								--shadow_data:SetPixel(math.floor(shadow_point.X+0.5), math.floor(shadow_point.Y+0.5), rmath:vec3_to_color(shadow_point))
+								local shadow_pixel = shadow_data:GetPixel(math.floor(shadow_point.X+0.5), math.floor(shadow_point.Y+0.5))
+								local shadow_index = packUnorm3x8(shadow_pixel)
+								--if shader_input.primitive_index ~= shadow_index then return color.black end
+								if shader_input.primitive_index == shadow_index then in_shadow = false end
+								
+								--return color.white
+							
+						end
+					end
 				end
 			end
+
+			if in_shadow then return color.black end
+			
+--			if math.abs(clip_space_point.X) < 1 and math.abs(clip_space_point.Y) < 1 then	
+--				local shadow_point = rmath:vec3_to_screen(clip_space_point, shadow_rb.Width, shadow_rb.Height)
+--				--local shadow_pixel = shadow_data:GetPixel(shadow_point.X, shadow_point.Y)
+--				--local shadow_index = packUnorm3x8(shadow_pixel)
+--				shadow_data:SetPixel(shadow_point.X, shadow_point.Y, color.white)
+--				
+--				-- if shader_input.primitive_index == shadow_index then return shadow_pixel end
+--				--return shadow_pixel
+--				return color.white
+--			end
 
 			-- attribute fetch
 			local a_texcoord  = fetch_attrib(shader_input.texcoords, bary)
@@ -212,7 +234,7 @@ function state_game:on_enter()
 	gdt.VideoChip0:SetRenderBufferSize(2, gdt.VideoChip0.Width, gdt.VideoChip0.Height) -- target buffer
 	gdt.VideoChip0:SetRenderBufferSize(3, 256, 256) -- albedo texture buffer
 	gdt.VideoChip0:SetRenderBufferSize(4, 256, 256) -- normal texture buffer
-	gdt.VideoChip0:SetRenderBufferSize(5, 256*4, 256*4) -- shadow buffer
+	gdt.VideoChip0:SetRenderBufferSize(5, 4096, 4096) -- shadow buffer
 	
 	albedo_data = require("TX_penta_albedo"):toPixelData(texture_rb:GetPixelData())
 	normal_data = require("TX_penta_normal"):toPixelData(normal_rb:GetPixelData())
@@ -256,11 +278,11 @@ function state_game:update(_delta_time)
 end
 
 function state_game:draw()
-	light_dir = vec3(0,0,1)
+	light_dir = vec3(1,0,-1)
 	
 	-- Model Setup
 	local model = nil
-	model = rmath:mat4_translate(model, vec3(0,0,zoom))
+	model = rmath:mat4_scale(model, vec3(1-zoom,1-zoom,1-zoom))
 	model = rmath:mat4_rotateX(model, rotate_x)
 	model = rmath:mat4_rotateY(model, rotate_y)
 	
@@ -269,7 +291,7 @@ function state_game:draw()
 		rshaders:use_funcs("index")
 		gdt.VideoChip0:RenderOnBuffer(5) -- shading buffer
 		gdt.VideoChip0:Clear(color.black)
-		rg3d:push_look_at(light_dir * 3.5, -light_dir, vec3(0,1,0))
+		rg3d:push_look_at(-light_dir * 3.5, -light_dir, vec3(0,1,0))
 		rg3d:push_model_matrix(model)
 
 		ms_light_dir = rg3d:get_model_space_ligt_dir()
@@ -310,6 +332,9 @@ function state_game:draw()
 	local vis_pd = vis_renderbuffer:GetPixelData()
 	local target_pd = target_renderbuffer:GetPixelData()
 
+	rg3d:push_look_at(-light_dir * 3.5, -light_dir, vec3(0,1,0))
+	rg3d:push_model_matrix(model)
+
 	material_pass(spans, vis_pd, target_pd)
 
 	gdt.VideoChip0:BlitPixelData(vec2(0,0), target_pd)
@@ -318,8 +343,7 @@ function state_game:draw()
 	gdt.VideoChip0:BlitPixelData(vec2(0,0), shadow_data)
 	gdt.VideoChip0:RenderOnScreen()
 	
-	
-	gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),shadow_rb,64,64)
+	--gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),shadow_rb,shadow_rb.Width,shadow_rb.Height)
 
 	if DEBUG == 1 then
 		gdt.VideoChip0:DrawText(vec2(0,8),font,"RENDER DEBUG MODE",color.white,color.black)
