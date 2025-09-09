@@ -37,7 +37,8 @@ local font = gdt.ROM.System.SpriteSheets["StandardFont"]
 local shader_input = nil
 local light = 1
 
-local STAGE_SHADOW = true
+local STAGE_NORMAL_SHADING = false
+local STAGE_SHADOW = false
 
 local clear_color = vec3(0,0,0)
 if not engine.IS_RG then
@@ -129,7 +130,7 @@ local function material_func(_x, _y, _pixel, _index, _vis_pd)
 	else
 		if _index > 0 then 
 			shader_input = rg3d:get_draw_call(_index).args[5] or rg3d:get_draw_call(_index).args[4]
-			DO_SHADING = true
+			
 			local gl_FragColor = vec3(255,255,255)
 
 			light = 1.0
@@ -139,7 +140,7 @@ local function material_func(_x, _y, _pixel, _index, _vis_pd)
 			local cs = shader_input.clip_space_vertices
 			local bary = compute_true_barycentric(clip_space_point, cs[1], cs[2], cs[3],shader_input.inv_Zs[1],shader_input.inv_Zs[2],shader_input.inv_Zs[3])
 
-			if DO_SHADING then
+			if STAGE_NORMAL_SHADING then
 				-- attribute fetch
 				local a_texcoord  = fetch_attrib(shader_input.texcoords, bary)
 				local a_normal  = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_normals,  bary))
@@ -199,7 +200,7 @@ local function material_func(_x, _y, _pixel, _index, _vis_pd)
 				return true
 			end
 
-			if light == 0 or shadow_test() then 
+			if light == 0 or ( STAGE_SHADOW and shadow_test() ) then 
 				light = 0 -- return color.black 
 			end
 		
@@ -237,7 +238,7 @@ function state_game:on_enter()
 		50    -- far clip
 	)
 	
-	demo_mesh = rmesh:require_drawlist("penta")	
+	demo_mesh = rmesh:require_drawlist("kanohi<")	
 	engine.camera_pos = vec3(0,0,3.5)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
@@ -323,7 +324,11 @@ function state_game:draw()
 	-- Visbility Pass
 	rshaders:use_funcs("draw_id")
 	gdt.VideoChip0:RenderOnBuffer(1) -- vis buffer
-	shadow_data = shadow_rb:GetPixelData()
+	
+	if STAGE_SHADOW then
+		shadow_data = shadow_rb:GetPixelData()
+	end
+
 	gdt.VideoChip0:Clear(color.black)
 	
 	rg3d:push_model_matrix(model)
@@ -357,8 +362,10 @@ function state_game:draw()
 
 	gdt.VideoChip0:BlitPixelData(vec2(0,0), target_pd)
 	
-	gdt.VideoChip0:RenderOnBuffer(5)
-	gdt.VideoChip0:BlitPixelData(vec2(0,0), shadow_data)
+	if STAGE_SHADOW then
+		gdt.VideoChip0:RenderOnBuffer(5)
+		gdt.VideoChip0:BlitPixelData(vec2(0,0), shadow_data)
+	end
 	gdt.VideoChip0:RenderOnScreen()
 	
 	--gdt.VideoChip0:DrawRenderBuffer(vec2(0,0),shadow_rb,shadow_rb.Width,shadow_rb.Height)
