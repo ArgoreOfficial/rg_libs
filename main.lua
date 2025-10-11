@@ -18,6 +18,8 @@ function love.update(_dt)
 	_update_videochip(_dt)
 end
 
+-- TODO: configurable event channels
+
 function love.keypressed(key, scancode, isrepeat)
 	if eventChannel1 then
 		eventChannel1(nil, KeyboardChipEvent(true, false, _keycode_l2d_to_rg(key), "KeyboardChipEvent"))
