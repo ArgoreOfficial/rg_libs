@@ -238,7 +238,7 @@ function state_game:on_enter()
 		50    -- far clip
 	)
 	
-	demo_mesh = rmesh:require_drawlist("kanohi<")	
+	demo_mesh = rmesh:require_drawlist("kanohi")	
 	engine.camera_pos = vec3(0,0,3.5)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
