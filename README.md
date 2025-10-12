@@ -8,3 +8,5 @@ To use with your own, copy `conf.lua`, `main.lua`, `Import/` and `RetroGadgets/`
 At the top of `conf.lua` there is a table containing config for the gadget
 
 To use vscode for debugging, also copy `.vscode` and install [Sumneko's Lua extension](https://marketplace.visualstudio.com/items?itemName=sumneko.lua) and [Local Lua Debugger](https://marketplace.visualstudio.com/items?itemName=tomblind.local-lua-debugger-vscode)
+
+Uses [bjornbytes' tick](https://github.com/bjornbytes/tick) for TPS limiting
