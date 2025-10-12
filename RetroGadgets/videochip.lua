@@ -13,6 +13,24 @@ local draw_quad_data = {
 }
 local draw_quad = love.graphics.newMesh(draw_quad_data,"fan","dynamic")
 
+local font_map_uvs = {}
+local font_map = {
+    { "@", "$", "/", "\\", "&", "0", "1", "2", "3", "4", "5", "6",  "7", "8", "9", "a", "b", "c" },
+    { "d", "e", "f", "g",  "h", "i", "j", "k", "l", "m", "n", "o",  "p", "q", "r", "s", "t", "u" },
+    { "v", "w", "x", "y",  "z", "A", "B", "C", "D", "E", "F", "G",  "H", "I", "J", "K", "L", "M" },
+    { "N", "O", "P", "Q",  "R", "S", "T", "U", "V", "W", "X", "Y",  "Z", "[", "]", "{", "}", "#" },
+    { "!", "%", " ", "|",  "(", ")", "?", "+", "-", "*", "=", "\"", "'", "^", ".", ":", ",", "<" },
+    { ">", "_" }
+}
+
+-- sets up x and y coordinates for the font UVs 
+for y = 1, #font_map do
+    for x = 1, #font_map[y] do
+        font_map_uvs[font_map[y][x]] = vec2(x-1,y-1)
+    end
+end
+
+-- helper functions
 local function _color_to_rgba(_color)
     return _color.R/255, _color.G/255, _color.B/255, _color.A/255
 end
@@ -25,10 +43,10 @@ local function _reset_color()
     love.graphics.setColor(1, 1, 1, 1)
 end
 
--- _num_buffers:
---   Large: 16
---   Medium: 4
---   Small: 1
+-- _num_buffers:  
+--   Large: 16  
+--   Medium: 4  
+--   Small: 1  
 function _G._videochip(_screen_width, _screen_height, _num_buffers)
     local screen_buffer = _renderbuffer_new(_screen_width, _screen_height)
     local vc = setmetatable({
@@ -64,21 +82,22 @@ function _G._update_videochip(_dt)
     gdt.VideoChip0.TouchState = touch_state
 end
 
-function methods:Clear(_color)
-    local r,g,b = _color_to_rgba(_color)
-    love.graphics.clear(r,g,b)
-end
-
+-- This method sets the VideoChip to use screens as render targets.
 function methods:RenderOnScreen()
     self._current_renderbuffer = self._screen_buffer
     love.graphics.setCanvas(self._screen_buffer._Canvas)
 end
 
+--[[
+This method sets the VideoChip to use one of its RenderBuffers as a render target.  
+The `index` parameter identifies the RenderBuffer to use.
+]]
 function methods:RenderOnBuffer(_index) 
     self._current_renderbuffer = self.RenderBuffers[_index]
     love.graphics.setCanvas(self.RenderBuffers[_index]._Canvas)
 end
 
+-- Resize one of the VideoChip's RenderBuffers.
 function methods:SetRenderBufferSize(_index, _width, _height) 
     _renderbuffer_set(
         gdt.VideoChip0.RenderBuffers[_index], 
@@ -86,34 +105,46 @@ function methods:SetRenderBufferSize(_index, _width, _height)
         math.min(_height, 4096))
 end
 
+-- Clears all the render area with the specified color
+function methods:Clear(_color)
+    local r,g,b = _color_to_rgba(_color)
+    love.graphics.clear(r,g,b)
+end
+
+-- Sets the pixel at the specified `position` to the specified `color`
 function methods:SetPixel(_position, _color)
     _set_color(_color)
     love.graphics.rectangle("fill", _position.X, _position.Y, 1, 1)
     _reset_color()
 end
 
+-- Draws a dotted grid on the entire display area, with an offset. The `dotsDistance` parameter express the distance in pixels, on both axis, between dots.
 function methods:DrawPointGrid(_gridOffset, _dotsDistance, _color)
     rg_unimplemented()
 end
 
+-- Draws a line from position `start` to position `end`, using the specified `color`
 function methods:DrawLine(_start,_end,_color)
     _set_color(_color)
     love.graphics.line(_start.X, _start.Y, _end.X, _end.Y)
     _reset_color()
 end
 
+-- Draws an empty circle at the specified `position`, with the specified `radius`, in the specified `color`.
 function methods:DrawCircle(_position, _radius, _color)
     _set_color(_color)
     love.graphics.circle("line",_position.X,_position.Y,_radius)
     _reset_color()
 end
 
+-- Draws a filled circle at the specified `position`, with the specified `radius`, in the specified `color`.
 function methods:FillCircle(_position, _radius, _color)
     _set_color(_color)
     love.graphics.circle("fill",_position.X,_position.Y,_radius)
     _reset_color()
 end
 
+-- Draws an empty rect from `position1` to `position2`, in the specified `color`.
 function methods:DrawRect(_position1, _position2, _color)
     _set_color(_color)
     love.graphics.rectangle(
@@ -125,6 +156,7 @@ function methods:DrawRect(_position1, _position2, _color)
     _reset_color()
 end
 
+-- Draws a filled rect from `position1` to `position2`, in the specified `color`.
 function methods:FillRect(_position1, _position2, _color)
     _set_color(_color)
     love.graphics.rectangle(
@@ -136,12 +168,14 @@ function methods:FillRect(_position1, _position2, _color)
     _reset_color()
 end
 
+-- Draws an empty triangle with vertexes in `position1`,`position2` and `position3`, in the specified color.
 function methods:DrawTriangle(_position1, _position2, _position3, _color)
     methods:DrawLine(_position1, _position2, _color)
     methods:DrawLine(_position2, _position3, _color)
     methods:DrawLine(_position3, _position1, _color)
 end
 
+-- Draws a filled triangle with vertexes in `position1`,`position2` and `position3`, in the specified color.
 function methods:FillTriangle(_position1, _position2, _position3, _color)
     _set_color(_color)
     love.graphics.polygon("fill", 
@@ -152,6 +186,15 @@ function methods:FillTriangle(_position1, _position2, _position3, _color)
     _reset_color()
 end
 
+--[[
+Draws a specific sprite frame from the `spriteSheet`.  
+Position is the on-screen sprite desired `position` starting from the top left corner,  
+`spriteSheet` is the SpriteSheet asset containing the sprite frame to draw,  
+`spriteX` and `spriteY` are the coordinates to identify the desired sprite frame starting from the, top left corner, expressed in grid units.  
+`spriteX`=0 and `spriteY`=0 are the coordinates of the first sprite, top left.  
+`tintColor` is the color multiplier used to draw the sprite frame. `Color(255,255,255)` or `color.white` will leave the sprite frame unaffected.  
+`backgroundColor` is the color used to replace the transparent areas of the spriteFrame. Using `ColorRGBA(0,0,0,0)` or `color.clear` will leave the transparency as it is.  
+]]
 function methods:DrawSprite(_position, _spriteSheet, _spriteX, _spriteY, _tintColor, _backgroundColor) 
     _set_color(_tintColor)
     
@@ -167,6 +210,7 @@ function methods:DrawSprite(_position, _spriteSheet, _spriteX, _spriteY, _tintCo
     _reset_color()
 end
 
+-- Draw a portion of a SpriteSheet (defined by `spriteOffset`, `spriteSize`) without taking into account the grid
 function methods:DrawCustomSprite(_position, _spriteSheet, _spriteOffset, _spriteSize, _tintColor, _backgroundColor) 
     _set_color(_tintColor)    
     
@@ -176,23 +220,11 @@ function methods:DrawCustomSprite(_position, _spriteSheet, _spriteOffset, _sprit
     _reset_color()    
 end
 
-local font_map_uvs = {}
-local font_map = {
-    { "@", "$", "/", "\\", "&", "0", "1", "2", "3", "4", "5", "6",  "7", "8", "9", "a", "b", "c" },
-    { "d", "e", "f", "g",  "h", "i", "j", "k", "l", "m", "n", "o",  "p", "q", "r", "s", "t", "u" },
-    { "v", "w", "x", "y",  "z", "A", "B", "C", "D", "E", "F", "G",  "H", "I", "J", "K", "L", "M" },
-    { "N", "O", "P", "Q",  "R", "S", "T", "U", "V", "W", "X", "Y",  "Z", "[", "]", "{", "}", "#" },
-    { "!", "%", " ", "|",  "(", ")", "?", "+", "-", "*", "=", "\"", "'", "^", ".", ":", ",", "<" },
-    { ">", "_" }
-}
-
--- sets up x and y coordinates for the font UVs 
-for y = 1, #font_map do
-    for x = 1, #font_map[y] do
-        font_map_uvs[font_map[y][x]] = vec2(x-1,y-1)
-    end
-end
-
+--[[
+Draws the string contained in the `text` parameter, at the desired `position`, using `textColor` and `backgroundColor`.  
+The parameter `fontSprite` expect a spriteSheet asset labeled as font.  
+By placing a ROM you can access the standard font: `gdt.ROM.System.SpriteSheets["StandardFont"]`  
+]]
 function methods:DrawText(_position, _fontSprite, _text, _textColor, _backgroundColor)
     local font   = love.graphics.getFont()
 
@@ -212,6 +244,7 @@ function methods:DrawText(_position, _fontSprite, _text, _textColor, _background
     _reset_color()
 end
 
+-- Draws a specific sprite frame from the `spriteSheet` mapping it on a quad identified by `position1`, `position2`, `position3`, `position4`
 function methods:RasterSprite(_position1, _position2, _position3, _position4, _spriteSheet, _spriteX, _spriteY, _tintColor, _backgroundColor)
     local r,g,b,a = _color_to_rgba(_tintColor)
     draw_quad:setVertex(1, _position1.X, _position1.Y, 0.0, 0.0, r, g, b, a)
@@ -223,6 +256,7 @@ function methods:RasterSprite(_position1, _position2, _position3, _position4, _s
     love.graphics.draw(draw_quad,0,0)
 end
 
+-- Draws a portion of a SpriteSheet (defined by `spriteOffset`, `spriteSize`) without taking into account the grid mapping it on a quad identified by `position1`, `position2`, `position3`, `position4`
 function methods:RasterCustomSprite(_position1, _position2, _position3, _position4, _spriteSheet, _spriteOffset, _spriteSize, _tintColor, _backgroundColor) 
     _set_color(_tintColor)    
     
@@ -244,6 +278,7 @@ function methods:RasterCustomSprite(_position1, _position2, _position3, _positio
     _reset_color()    
 end
 
+-- Draws a render buffer (supposedly coming from Webcam component) at the desired `position`, `width` and `height`
 function methods:DrawRenderBuffer(_position, _renderBuffer, _width, _height)
     love.graphics.draw(
         _renderBuffer._Canvas, 
@@ -254,6 +289,12 @@ function methods:DrawRenderBuffer(_position, _renderBuffer, _width, _height)
     )
 end
 
+-- Draws a portion of a renderBuffer (defined by `bufferAreaOffset` and `bufferAreaSize`)
+function methods:DrawCustomRenderBuffer(_position, _renderBuffer, _width, _height, _bufferAreaOffset, _bufferAreaSize2)
+    rg_unimplemented()
+end
+
+-- Draws a RenderBuffer mapping it on a quad identified by `position1`, `position2`, `position3`, `position4`.
 function methods:RasterRenderBuffer(_position1, _position2 , _position3, _position4, _renderBuffer)
     draw_quad:setVertex(1, _position1.X, _position1.Y, 0.0, 0.0, 1, 1, 1, 1)
     draw_quad:setVertex(2, _position2.X, _position2.Y, 1.0, 0.0, 1, 1, 1, 1)
@@ -264,11 +305,18 @@ function methods:RasterRenderBuffer(_position1, _position2 , _position3, _positi
     love.graphics.draw(draw_quad,0,0)
 end
 
+-- Draws a portion of a RenderBuffer (defined by `bufferAreaOffset`, `bufferAreaSize`) without taking into account the grid mapping it on a quad identified by `position1`, `position2`, `position3`, `position4`
+function RasterCustomRenderBuffer(_position1, _position2, _position3, _position4, _renderBuffer, _bufferAreaOffset, _bufferAreaSize )
+    rg_unimplemented()
+end
+
+-- Apply `pixelData` content to VideoChip's video buffer, width and height must have the same value as VideoChip's
 function methods:SetPixelData(_pixelData)
     rg_unimplemented()
 end
 
+-- Draw a `pixelData` content to VideoChip's video buffer at the offset of `position`. This way PixelData width and height don't need to match the VideoChip's
 function methods:BlitPixelData(_position, _pixelData)
     local image = love.graphics.newImage(_pixelData._ImageData)
-    love.graphics.draw(image,0,0)
+    love.graphics.draw(image, _position.X, _position.Y)
 end
