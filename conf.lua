@@ -4,9 +4,9 @@
 --[[ CONFIG ]]
 
 GADGET = {
-	ScreenWidth = 224,
-	ScreenHeight = 192,
-	Scale = 2
+	ScreenWidth = 64,
+	ScreenHeight = 32,
+	Scale = 8
 }
 
 --[[ END CONFIG ]]

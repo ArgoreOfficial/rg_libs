@@ -20,8 +20,12 @@ require = function(_name)
 end
 
 local rmath = require("rg_math")
+local chip8 = require("chip8")
+
 
 -- update function is repeated every time tick
 function update()
-	gdt.VideoChip0:Clear(color.cyan)
+	gdt.VideoChip0:BlitPixelData(vec2(0,0), chip8.display)
+
+	chip8.tick()
 end
