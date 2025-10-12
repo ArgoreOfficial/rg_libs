@@ -306,7 +306,7 @@ function methods:RasterRenderBuffer(_position1, _position2 , _position3, _positi
 end
 
 -- Draws a portion of a RenderBuffer (defined by `bufferAreaOffset`, `bufferAreaSize`) without taking into account the grid mapping it on a quad identified by `position1`, `position2`, `position3`, `position4`
-function RasterCustomRenderBuffer(_position1, _position2, _position3, _position4, _renderBuffer, _bufferAreaOffset, _bufferAreaSize )
+function RasterCustomRenderBuffer(_position1, _position2, _position3, _position4, _renderBuffer, _bufferAreaOffset, _bufferAreaSize)
     rg_unimplemented()
 end
 

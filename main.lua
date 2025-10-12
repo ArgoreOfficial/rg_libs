@@ -1,6 +1,8 @@
 
+local tick = require("tick")
+
 -- RG Layer
-require( "RetroGadgets.rg" )
+require("RetroGadgets.rg")
 
 table.unpack = unpack 
 
@@ -11,11 +13,13 @@ function love.load()
 	gdt.VideoChip0:RenderOnScreen()
 	dofile( "Import/CPU0.lua" )
 	love.graphics.setCanvas()
+
+	tick.framerate = 60
 end
 
 function love.update(_dt)
-	_update_gdt(_dt)
-	_update_videochip(_dt)
+	_update_gdt(tick.dt)
+	_update_videochip(tick.dt)
 end
 
 -- TODO: configurable event channels
@@ -31,6 +35,9 @@ function love.keyreleased(key, scancode, isrepeat)
 		eventChannel1(nil, KeyboardChipEvent(false, true, _keycode_l2d_to_rg(key), "KeyboardChipEvent"))
 	end
 end
+
+local t1 = 0
+local fps = 1 / 60
 
 function love.draw()
 	love.graphics.setCanvas(gdt.VideoChip0._current_renderbuffer._Canvas)
