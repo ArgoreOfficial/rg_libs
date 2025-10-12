@@ -47,7 +47,9 @@ function _G.PixelData.new(width, height, color)
 
     for y = 1, height do
         for x = 1, width do
-            pd._ImageData:setPixel(x, y, color.R/255, color.G/255, color.B/255, color.A/255)
+            pd._ImageData:setPixel(x-1, y-1, color.R/255, color.G/255, color.B/255, color.A/255)
         end
     end
+
+    return pd
 end
