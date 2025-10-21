@@ -1,45 +1,32 @@
-local emu = {}
+local ctx = {}
 
 -- Helpers
 
 local function clamp8(_value)  return bit32.band(_value, 0xFF) end
 local function clamp16(_value) return bit32.band(_value, 0xFFFF) end
 
-local function malloc(_size) return 0 end
+local function malloc(_size) 
+	return 0 
+end
 
-local function get_ram(_byte) return emu.RAM[_byte+1] end
-local function set_ram(_byte, _value) emu.RAM[_byte+1] = _value end
+local function get_ram(_byte) return ctx.RAM[_byte+1] end
+local function set_ram(_byte, _value) ctx.RAM[_byte+1] = clamp8(_value) end
 
 local function get_reg(_register) 
-	return emu.registers[_register+1] 
+	return ctx.registers[_register+1] 
 end
 
 local function set_reg(_register, _value) 
-	emu.registers[_register+1] = _value 
+	ctx.registers[_register+1] = clamp8(_value)
 end
 
 local function add_reg(_register, _value)
-	emu.registers[_register+1] = bit32.band((emu.registers[_register+1] + _value), 0xFF)
+	ctx.registers[_register+1] = bit32.band((ctx.registers[_register+1] + _value), 0xFF)
 end
 
 local function pull4(_bits) return bit32.extract(_bits, 0, 4) end
 local function pull8(_bits) return bit32.extract(_bits, 0, 8) end
 local function pull12(_bits) return bit32.extract(_bits, 0, 12) end
-
-local function assemble8(_a, _b)
-	return bit32.bor( 
-		bit32.lshift(_a, 4),
-		_b
-	)
-end
-
-local function assemble16(_a, _b, _c)
-	return bit32.bor(
-		bit32.lshift(_a, 8),
-		bit32.lshift(_b, 4),
-		_c
-	)
-end
 
 local function fetch(_byte0, _byte1)
 	return {
@@ -60,17 +47,21 @@ end
 
 local function write_table_to_ram(_at, _table)
 	for i = 1, #_table do
-		emu.RAM[_at + i] = clamp8(_table[ i ])
+		ctx.RAM[_at + i] = clamp8(_table[ i ])
 	end
+end
+
+function ctx:load_program(_program)
+	write_table_to_ram(0x200, _program)
 end
 
 local DISPLAY_WIDTH  = 64
 local DISPLAY_HEIGHT = 32
 
 -- Specifications
-emu.display = PixelData.new(DISPLAY_WIDTH, DISPLAY_HEIGHT, color.black)
-emu.RAM = create_buffer(4096, 1)
-emu.registers = { -- 16 8-bit registers
+ctx.display = PixelData.new(DISPLAY_WIDTH, DISPLAY_HEIGHT, color.black)
+ctx.RAM = create_buffer(4096, 1)
+ctx.registers = { -- 16 8-bit registers
 	malloc(1), 
 	malloc(1), 
 	malloc(1), 
@@ -88,33 +79,67 @@ emu.registers = { -- 16 8-bit registers
 	malloc(1), 
 	malloc(1)
 }
-emu.DT = malloc(1) -- 8 bit
-emu.ST = malloc(1) -- 8 bit
-emu.I  = malloc(2) -- 16 bit
-emu.PC = malloc(2) -- program counter, 16-bit
-emu.SP = malloc(1) -- stack pointer, 8-bit
-emu.stack = {}
-
+ctx.DT = malloc(1) -- 8-bit
+ctx.ST = malloc(1) -- 8-bit
+ctx.I  = malloc(2) -- 16-bit
+ctx.PC = malloc(2) -- program counter, 16-bit
+ctx.SP = malloc(1) -- stack pointer, 8-bit
+ctx.stack = {}
+ctx.keys = {
+	0,0,0,0,
+	0,0,0,0,
+	0,0,0,0,
+	0,0,0,0
+}
 -- Instructions 
 
 -- 00E0
 function CLS()
 	for y = 1, 32 do
 		for x = 1, 64 do
-			emu.display:SetPixel(x, y, color.black)
+			ctx.display:SetPixel(x, y, color.black)
 		end
 	end
 end
 
 -- 00EE
 function RET()
-	emu.SP = emu.SP - 1
-	emu.PC = emu.stack[emu.SP]
+	ctx.SP = ctx.SP - 1
+	ctx.PC = ctx.stack[ctx.SP]
 end
 
 -- 1NNN
 function JMP_NNN(_bits) 
-	emu.PC = bit32.extract(_bits, 0, 12)
+	ctx.PC = bit32.extract(_bits, 0, 12)
+end
+
+-- 2NNN
+function CALL_NNN(_bits)
+	ctx.stack[ctx.SP] = ctx.PC
+	ctx.SP = ctx.SP + 1
+
+	ctx.PC = pull12(_bits)
+end
+
+-- 3XNN
+function SE_VX_NN(_bits, _vx)
+	if get_reg(_vx) == pull8(_bits) then
+		ctx.PC = ctx.PC + 2
+	end
+end
+
+-- 4XNN
+function SNE_VX_NN(_bits, _vx)
+	if get_reg(_vx) ~= pull8(_bits) then
+		ctx.PC = ctx.PC + 2
+	end
+end
+
+-- 5XY0
+function SE_VX_VY(_bits, _vx, _vy)
+	if get_reg(_vx) == get_reg(_vy) then
+		ctx.PC = ctx.PC + 2
+	end
 end
 
 -- 6XNN
@@ -127,30 +152,71 @@ function ADD_VX_NN(_bits, _vx)
 	add_reg(_vx, pull8(_bits))
 end
 
+-- 8XY_
+function ALU_OPS(_bits, _vx, _vy, _o)
+	if _o == 0x0 then -- 8XY0
+		-- LD VX, VY
+		set_reg(_vx, get_reg(_vy))
+	elseif _o == 0x1 then -- 8XY1
+		-- OR VX, VY
+		set_reg(_vx, bit32.bor(get_reg(_vx), get_reg(_vy)))
+	elseif _o == 0x2 then -- 8XY2
+		-- AND VX, VY
+		set_reg(_vx, bit32.band(get_reg(_vx), get_reg(_vy)))
+	elseif _o == 0x3 then -- 8XY3
+		-- XOR VX, VY
+		set_reg(_vx, bit32.bxor(get_reg(_vx), get_reg(_vy)))
+	elseif _o == 0x4 then -- 8XY4
+		-- ADD VX, VY
+		local vx = get_reg(_vx)
+		local vy = get_reg(_vy)
+		set_reg(0xF, vx + vy > 0xFF and 1 or 0)
+		set_reg(_vx, vx + vy)
+	elseif _o == 0x5 then -- 8XY5
+		-- SUB VX, VY
+		local vx = get_reg(_vx)
+		local vy = get_reg(_vy)
+		set_reg(0xF, vx > vy and 1 or 0)
+		set_reg(_vx, vx - vy)
+	elseif _o == 0x6 then -- 8XY6
+		-- SHR VX {, VY}
+		local vx = get_reg(_vx)
+		set_reg(0xF, bit32.band(vx, 0x01 ))
+		set_reg(_vx, bit32.rshift(vx, 1))
+	elseif _o == 0x7 then -- 8XY7
+		-- SUBN VX, VY
+		local vx = get_reg(_vx)
+		local vy = get_reg(_vy)
+		set_reg(0xF, vy > vx and 1 or 0)
+		set_reg(_vx, vy - vx)
+	elseif _o == 0xE then -- 8XYE
+		-- SHL VX {, VY}
+		local vx = get_reg(_vx)
+		set_reg(0xF, bit32.band(vx, 0x80))
+		set_reg(_vx, bit32.lshift(vx, 1))
+	end
+end
+
+-- 9XY0
+function SNE_VX_VY(_bits, _vx, _vy)
+	if get_reg(_vx) ~= get_reg(_vy) then
+		ctx.PC = ctx.PC + 2 
+	end
+end
+
 -- ANNN
 function LD_I_NNN(_bits)
-	emu.I = bit32.extract(_bits, 0, 12)
+	ctx.I = pull12(_bits)
 end
 
--- 3XNN
-function SE_VX_NN(_bits, _vx)
-	if get_reg(_vx) == pull8(_bits) then
-		emu.PC = emu.PC + 2
-	end
+-- BNNN
+function JMP_V0_NNN(_bits)
+	ctx.PC = clamp16(get_reg(0) + pull12(_bits))
 end
 
--- 4XNN
-function SNE_VX_NN(_bits, _vx)
-	if get_reg(_vx) ~= pull8(_bits) then
-		emu.PC = emu.PC + 2
-	end
-end
-
--- 5XY0
-function SE_VX_VY(_bits, _vx, _vy)
-	if get_reg(_vx) == get_reg(_vy) then
-		emu.PC = emu.PC + 2
-	end
+-- CXNN
+function RND_VX_NN(_bits, _vx)
+	set_reg(_vx, bit32.band(math.random(0, 255), pull8(_bits)))
 end
 
 -- DXYN
@@ -160,7 +226,7 @@ function DRW_VX_VY_N(_bits, _vx, _vy, _n)
 	set_reg(0xF, 0)
 
 	for row = 0, _n-1 do
-		local bits = get_ram(clamp16(emu.I + row))
+		local bits = get_ram(clamp16(ctx.I + row))
 		local cy = ycoord + row
 
 		for col = 0, 7 do
@@ -168,12 +234,12 @@ function DRW_VX_VY_N(_bits, _vx, _vy, _n)
 			local bit = bit32.extract(bits, 7 - col)
 			
 			if bit > 0 then 
-				local v = emu.display:GetPixel(cx+1, cy+1) == color.white 
+				local v = ctx.display:GetPixel(cx+1, cy+1) == color.white 
 				if v then 
 					set_reg(0xF, 1) 
-					emu.display:SetPixel(cx+1, cy+1, color.black)
+					ctx.display:SetPixel(cx+1, cy+1, color.black)
 				else
-					emu.display:SetPixel(cx+1, cy+1, color.white)
+					ctx.display:SetPixel(cx+1, cy+1, color.white)
 				end
 			end
 
@@ -188,6 +254,81 @@ function DRW_VX_VY_N(_bits, _vx, _vy, _n)
 	end
 end
 
+-- EX__
+function SKIP_VX(_bits, _vx)
+	local op = pull8(_bits)
+	if op == 0x9E then -- EX9E
+		-- SKP VX
+		if ctx.keys[_vx] == 1 then
+			ctx.PC = ctx.PC + 2
+		end
+	elseif op == 0xA1 then -- EXA1
+		-- SKNP VX
+		if ctx.keys[_vx] == 1 then
+			ctx.PC = ctx.PC + 2
+		end
+	end
+end
+
+-- FX__
+
+local FX_ops = {
+	[0x07] = function(_bits, _vx)
+		set_reg(_vx, ctx.DT)
+	end,
+
+	[0x0A] = function(_bits, _vx)
+		local k = wait_input()
+		set_reg(_vx, k)
+	end,
+
+	[0x15] = function(_bits, _vx)
+		ctx.DT = get_reg(_vx)
+	end,
+
+	[0x18] = function(_bits, _vx)
+		ctx.ST = get_reg(_vx)
+	end,
+	
+	[0x1E] = function(_bits, _vx)
+		ctx.I = clamp16(ctx.I + get_reg(_vx))
+	end,
+	
+	[0x29] = function(_bits, _vx)
+		ctx.I = clamp16(get_reg(_vx) * 5)
+	end,
+	
+	[0x33] = function(_bits, _vx)
+		local vx = get_reg(_vx)
+		local s = string.format("%03d", vx)
+		
+		local a = tonumber(s:sub(1,1))
+		local b = tonumber(s:sub(2,2))
+		local c = tonumber(s:sub(3,3))
+
+		set_ram(ctx.I, a)
+		set_ram(clamp16(ctx.I + 1), b)
+		set_ram(clamp16(ctx.I + 2), c)
+	end,
+	
+	[0x55] = function(_bits, _vx)
+		for reg = 0, _vx do
+			set_ram(ctx.I + reg, get_reg(reg))
+		end
+	end,
+
+	[0x65] = function(_bits, _vx)
+		for reg = 0, _vx do
+			set_reg(reg, get_ram(ctx.I + reg))
+		end
+	end
+}
+
+function INTERRUPTS(_bits, _vx)
+	local op = FX_ops[pull8(_bits)]
+	if op then op(_bits, _vx) end
+end
+
 local opcodes = {
 	[0x0] = {[0x0] = {[0xE] = {
 		[0x0] = CLS, 
@@ -195,26 +336,38 @@ local opcodes = {
 	}}},
 
 	[0x1] = JMP_NNN,
+	[0x2] = CALL_NNN,
 	[0x3] = SE_VX_NN,
 	[0x4] = SNE_VX_NN,
 	[0x5] = SE_VX_VY,
 	[0x6] = LD_VX_NN,
 	[0x7] = ADD_VX_NN,
+	[0x8] = ALU_OPS,
+	[0x9] = SNE_VX_VY,
 	[0xA] = LD_I_NNN,
-	[0xD] = DRW_VX_VY_N	
+	[0xB] = JMP_V0_NNN,
+	[0xC] = RND_VX_NN,
+	[0xD] = DRW_VX_VY_N,
+	[0xE] = SKIP_VX,
+	[0xF] = INTERRUPTS
+
 }
 
 local function run_op(_a, _b, _c, _d, _16bits)
 	local a = opcodes[_a]
+	if not a then return end
 	if type(a) == "function" then a(_16bits, _b, _c, _d); return end
-	
+
 	local b = a[_b]
+	if not b then return end
 	if type(b) == "function" then b(_16bits, _c, _d); return end
 	
 	local c = b[_c]
+	if not c then return end
 	if type(c) == "function" then c(_16bits, _d); return end
 	
 	local d = c[_d]
+	if not d then return end
 	if type(d) == "function" then d(); return end
 end
 
@@ -222,7 +375,7 @@ end
 
 -- Setup stack
 for i = 1, 255 do 
-	emu.stack[#emu.stack+1] = malloc(2)
+	ctx.stack[#ctx.stack+1] = malloc(2)
 end
 
 -- Setup font data
@@ -245,34 +398,79 @@ write_table_to_ram(0x00, {
     0xF0, 0x80, 0xF0, 0x80, 0x80  -- F
 })
 
--- Load program
-write_table_to_ram(0x200, { 
-  0x00, 0xe0, 0xa2, 0x2a, 0x60, 0x0c, 0x61, 0x08, 
-  0xd0, 0x1f, 0x70, 0x09, 0xa2, 0x39, 0xd0, 0x1f, 
-  0xa2, 0x48, 0x70, 0x08, 0xd0, 0x1f, 0x70, 0x04, 
-  0xa2, 0x57, 0xd0, 0x1f, 0x70, 0x08, 0xa2, 0x66, 
-  0xd0, 0x1f, 0x70, 0x08, 0xa2, 0x75, 0xd0, 0x1f, 
-  0x12, 0x28, 0xff, 0x00, 0xff, 0x00, 0x3c, 0x00, 
-  0x3c, 0x00, 0x3c, 0x00, 0x3c, 0x00, 0xff, 0x00, 
-  0xff, 0xff, 0x00, 0xff, 0x00, 0x38, 0x00, 0x3f, 
-  0x00, 0x3f, 0x00, 0x38, 0x00, 0xff, 0x00, 0xff, 
-  0x80, 0x00, 0xe0, 0x00, 0xe0, 0x00, 0x80, 0x00, 
-  0x80, 0x00, 0xe0, 0x00, 0xe0, 0x00, 0x80, 0xf8, 
-  0x00, 0xfc, 0x00, 0x3e, 0x00, 0x3f, 0x00, 0x3b, 
-  0x00, 0x39, 0x00, 0xf8, 0x00, 0xf8, 0x03, 0x00, 
-  0x07, 0x00, 0x0f, 0x00, 0xbf, 0x00, 0xfb, 0x00, 
-  0xf3, 0x00, 0xe3, 0x00, 0x43, 0xe0, 0x00, 0xe0, 
-  0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 
-  0x00, 0xe0, 0x00, 0xe0 
+ctx:load_program({ 
+  0x12, 0x4e, 0xea, 0xac, 0xaa, 0xea, 0xce, 0xaa, 
+  0xaa, 0xae, 0xe0, 0xa0, 0xa0, 0xe0, 0xc0, 0x40, 
+  0x40, 0xe0, 0xe0, 0x20, 0xc0, 0xe0, 0xe0, 0x60, 
+  0x20, 0xe0, 0xa0, 0xe0, 0x20, 0x20, 0x60, 0x40, 
+  0x20, 0x40, 0xe0, 0x80, 0xe0, 0xe0, 0xe0, 0x20, 
+  0x20, 0x20, 0xe0, 0xe0, 0xa0, 0xe0, 0xe0, 0xe0, 
+  0x20, 0xe0, 0x40, 0xa0, 0xe0, 0xa0, 0xe0, 0xc0, 
+  0x80, 0xe0, 0xe0, 0x80, 0xc0, 0x80, 0xa0, 0x40, 
+  0xa0, 0xa0, 0xa2, 0x02, 0xda, 0xb4, 0x00, 0xee, 
+  0xa2, 0x02, 0xda, 0xb4, 0x13, 0xdc, 0x68, 0x01, 
+  0x69, 0x05, 0x6a, 0x0a, 0x6b, 0x01, 0x65, 0x2a, 
+  0x66, 0x2b, 0xa2, 0x16, 0xd8, 0xb4, 0xa2, 0x3e, 
+  0xd9, 0xb4, 0xa2, 0x02, 0x36, 0x2b, 0xa2, 0x06, 
+  0xda, 0xb4, 0x6b, 0x06, 0xa2, 0x1a, 0xd8, 0xb4, 
+  0xa2, 0x3e, 0xd9, 0xb4, 0xa2, 0x06, 0x45, 0x2a, 
+  0xa2, 0x02, 0xda, 0xb4, 0x6b, 0x0b, 0xa2, 0x1e, 
+  0xd8, 0xb4, 0xa2, 0x3e, 0xd9, 0xb4, 0xa2, 0x06, 
+  0x55, 0x60, 0xa2, 0x02, 0xda, 0xb4, 0x6b, 0x10, 
+  0xa2, 0x26, 0xd8, 0xb4, 0xa2, 0x3e, 0xd9, 0xb4, 
+  0xa2, 0x06, 0x76, 0xff, 0x46, 0x2a, 0xa2, 0x02, 
+  0xda, 0xb4, 0x6b, 0x15, 0xa2, 0x2e, 0xd8, 0xb4, 
+  0xa2, 0x3e, 0xd9, 0xb4, 0xa2, 0x06, 0x95, 0x60, 
+  0xa2, 0x02, 0xda, 0xb4, 0x6b, 0x1a, 0xa2, 0x32, 
+  0xd8, 0xb4, 0xa2, 0x3e, 0xd9, 0xb4, 0x22, 0x42, 
+  0x68, 0x17, 0x69, 0x1b, 0x6a, 0x20, 0x6b, 0x01, 
+  0xa2, 0x0a, 0xd8, 0xb4, 0xa2, 0x36, 0xd9, 0xb4, 
+  0xa2, 0x02, 0xda, 0xb4, 0x6b, 0x06, 0xa2, 0x2a, 
+  0xd8, 0xb4, 0xa2, 0x0a, 0xd9, 0xb4, 0xa2, 0x06, 
+  0x87, 0x50, 0x47, 0x2a, 0xa2, 0x02, 0xda, 0xb4, 
+  0x6b, 0x0b, 0xa2, 0x2a, 0xd8, 0xb4, 0xa2, 0x0e, 
+  0xd9, 0xb4, 0xa2, 0x06, 0x67, 0x2a, 0x87, 0xb1, 
+  0x47, 0x2b, 0xa2, 0x02, 0xda, 0xb4, 0x6b, 0x10, 
+  0xa2, 0x2a, 0xd8, 0xb4, 0xa2, 0x12, 0xd9, 0xb4, 
+  0xa2, 0x06, 0x66, 0x78, 0x67, 0x1f, 0x87, 0x62, 
+  0x47, 0x18, 0xa2, 0x02, 0xda, 0xb4, 0x6b, 0x15, 
+  0xa2, 0x2a, 0xd8, 0xb4, 0xa2, 0x16, 0xd9, 0xb4, 
+  0xa2, 0x06, 0x66, 0x78, 0x67, 0x1f, 0x87, 0x63, 
+  0x47, 0x67, 0xa2, 0x02, 0xda, 0xb4, 0x6b, 0x1a, 
+  0xa2, 0x2a, 0xd8, 0xb4, 0xa2, 0x1a, 0xd9, 0xb4, 
+  0xa2, 0x06, 0x66, 0x8c, 0x67, 0x8c, 0x87, 0x64, 
+  0x47, 0x18, 0xa2, 0x02, 0xda, 0xb4, 0x68, 0x2c, 
+  0x69, 0x30, 0x6a, 0x34, 0x6b, 0x01, 0xa2, 0x2a, 
+  0xd8, 0xb4, 0xa2, 0x1e, 0xd9, 0xb4, 0xa2, 0x06, 
+  0x66, 0x8c, 0x67, 0x78, 0x87, 0x65, 0x47, 0xec, 
+  0xa2, 0x02, 0xda, 0xb4, 0x6b, 0x06, 0xa2, 0x2a, 
+  0xd8, 0xb4, 0xa2, 0x22, 0xd9, 0xb4, 0xa2, 0x06, 
+  0x66, 0xe0, 0x86, 0x6e, 0x46, 0xc0, 0xa2, 0x02, 
+  0xda, 0xb4, 0x6b, 0x0b, 0xa2, 0x2a, 0xd8, 0xb4, 
+  0xa2, 0x36, 0xd9, 0xb4, 0xa2, 0x06, 0x66, 0x0f, 
+  0x86, 0x66, 0x46, 0x07, 0xa2, 0x02, 0xda, 0xb4, 
+  0x6b, 0x10, 0xa2, 0x3a, 0xd8, 0xb4, 0xa2, 0x1e, 
+  0xd9, 0xb4, 0xa3, 0xe8, 0x60, 0x00, 0x61, 0x30, 
+  0xf1, 0x55, 0xa3, 0xe9, 0xf0, 0x65, 0xa2, 0x06, 
+  0x40, 0x30, 0xa2, 0x02, 0xda, 0xb4, 0x6b, 0x15, 
+  0xa2, 0x3a, 0xd8, 0xb4, 0xa2, 0x16, 0xd9, 0xb4, 
+  0xa3, 0xe8, 0x66, 0x89, 0xf6, 0x33, 0xf2, 0x65, 
+  0xa2, 0x02, 0x30, 0x01, 0xa2, 0x06, 0x31, 0x03, 
+  0xa2, 0x06, 0x32, 0x07, 0xa2, 0x06, 0xda, 0xb4, 
+  0x6b, 0x1a, 0xa2, 0x0e, 0xd8, 0xb4, 0xa2, 0x3e, 
+  0xd9, 0xb4, 0x12, 0x48, 0x13, 0xdc 
 })
 
-emu.PC = 0x200
+ctx.PC = 0x200
 
-function emu.tick()
-	local byte0 = get_ram(emu.PC)
-	emu.PC = emu.PC + 1
-	local byte1 = get_ram(emu.PC)
-	emu.PC = emu.PC + 1
+function ctx.tick()
+	if ctx.ST > 0 then ctx.ST = ctx.ST - 1 end
+	if ctx.DT > 0 then ctx.DT = ctx.DT - 1 end
+
+	local byte0 = get_ram(ctx.PC)
+	ctx.PC = ctx.PC + 1
+	local byte1 = get_ram(ctx.PC)
+	ctx.PC = ctx.PC + 1
 
 	local v = fetch(byte0, byte1)
 	run_op(
@@ -283,4 +481,4 @@ function emu.tick()
 		))
 end
 
-return emu
+return ctx
