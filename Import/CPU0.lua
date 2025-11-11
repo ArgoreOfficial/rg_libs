@@ -21,11 +21,18 @@ end
 
 local rmath = require("rg_math")
 local chip8 = require("chip8")
-
+local chip8_static = require("chip8_static")
 
 -- update function is repeated every time tick
-function update()
-	gdt.VideoChip0:BlitPixelData(vec2(0,0), chip8.display)
+gdt.VideoChip0:SetRenderBufferSize(1, 64, 32)
 
-	chip8.tick()
+function update()
+
+	chip8_static.timers_tick()
+	for i = 1, 3200 do
+		chip8_static.tick()
+	end
+	--print(chip8_static.PC)
+
+	gdt.VideoChip0:BlitPixelData(vec2(0,0), chip8_static.display)
 end
