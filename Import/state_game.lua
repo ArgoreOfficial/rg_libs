@@ -67,6 +67,48 @@ local function packUnorm3x8(v)
 end
 
 --------------------------------------------------------
+--[[  Maths                                           ]]
+--------------------------------------------------------
+
+-- triangle = {a:vec3, b:vec3, c:vec3}
+function ray_intersects_triangle(ray_origin, ray_vector, triangle)
+    local epsilon = 0.0000001
+
+    local edge1 = triangle[2] - triangle[1]
+    local edge2 = triangle[3] - triangle[1]
+    local ray_cross_e2 = rmath:vec3_cross(ray_vector, edge2)
+    local det = rmath:vec3_dot(edge1, ray_cross_e2)
+
+    if det > -epsilon and det < epsilon then
+        return nil -- This ray is parallel to this triangle.
+    end
+
+    local inv_det = 1.0 / det
+    local s = ray_origin - triangle[1]
+    local u = inv_det * rmath:vec3_dot(s, ray_cross_e2)
+
+    if ((u < 0 and math.abs(u) > epsilon) or (u > 1 and math.abs(u-1) > epsilon)) then
+        return nil
+    end
+
+    local s_cross_e1 = rmath:vec3_cross(s, edge1)
+    local v = inv_det * rmath:vec3_dot(ray_vector, s_cross_e1)
+
+    if ((v < 0 and math.abs(v) > epsilon) or (u + v > 1 and math.abs(u + v - 1) > epsilon)) then
+        return nil 
+    end
+
+    -- At this stage we can compute t to find out where the intersection point is on the line.
+    local t = inv_det * rmath:vec3_dot(edge2, s_cross_e1)
+
+    if t > epsilon then -- ray intersection
+        return  vec3(ray_origin + ray_vector * t)
+    else -- This means that there is a line intersection but not a ray intersection.
+        return nil
+    end
+end
+
+--------------------------------------------------------
 --[[  Shaders                                         ]]
 --------------------------------------------------------
 
@@ -139,10 +181,30 @@ local function material_func(_x, _y, _pixel, _index, _vis_pd)
 			local cs = shader_input.clip_space_vertices
 			local bary = compute_true_barycentric(clip_space_point, cs[1], cs[2], cs[3],shader_input.inv_Zs[1],shader_input.inv_Zs[2],shader_input.inv_Zs[3])
 
-			if DO_SHADING then
+			local world_space_point = fetch_attrib(demo_mesh[shader_input.primitive_index][2][1], bary)
+			local a_normal  = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_normals,  bary))
+
+			if rmath:vec3_dot(a_normal, ms_light_dir) > 0.0 then
+				for i = 1, #demo_mesh do
+					if i ~= shader_input.primitive_index then
+						-- [i] command -> [2] data -> [4] extra -> .normal
+						if rmath:vec3_dot(demo_mesh[i][2][4].normal, ms_light_dir) > 0.0 then
+							-- [i] command -> [2] data -> [1] face
+							if ray_intersects_triangle(world_space_point, ms_light_dir, demo_mesh[i][2][1]) then
+								light = 0.0
+								i = #demo_mesh
+							end
+						end
+					end
+				end
+			else
+				light = 0.0
+			end
+
+			if false then
 				-- attribute fetch
 				local a_texcoord  = fetch_attrib(shader_input.texcoords, bary)
-				local a_normal  = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_normals,  bary))
+				
 				local a_tangent = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_tangents, bary))
 				local bitangent = shader_input.bitangent_sign * rmath:vec3_cross(a_normal, a_tangent)
 
@@ -166,48 +228,17 @@ local function material_func(_x, _y, _pixel, _index, _vis_pd)
 				local tex_albedo = texture(albedo_data, a_texcoord)
 				gl_FragColor = vec3(tex_albedo.R, tex_albedo.G, tex_albedo.B)
 			end
-
-			local function shadow_test()
-				local world_space_point = fetch_attrib(demo_mesh[shader_input.primitive_index][2][1], bary)
-				local shadow_point = rg3d:to_screen(world_space_point, shadow_rb.Width, shadow_rb.Height)
-	
-				if shadow_point.X < 1 or shadow_point.X >= shadow_rb.Width or shadow_point.Y < 1 or shadow_point.Y >= shadow_rb.Height then	return true end
-
-				local shadow_pixel = shadow_data:GetPixel(math.floor(shadow_point.X), math.floor(shadow_point.Y))
-				local shadow_index = packUnorm3x8(shadow_pixel)
-				
-				if shadow_index == shader_input.primitive_index then return false end
-
-				for offset_y = -2, 2 do
-					for offset_x = -2, 2 do
-						local x_check = _x + offset_x
-						local y_check = _y + offset_y
-
-						if x_check >= 1 and x_check < _vis_pd.Width and y_check >= 1 and y_check < _vis_pd.Height then
-							local this_index = packUnorm3x8(_vis_pd:GetPixel(x_check, y_check))
-							if this_index > 0 then
-								local this_shader_input = rg3d:get_draw_call(this_index).args[5] or rg3d:get_draw_call(this_index).args[4]
-	
-								if this_shader_input.primitive_index == shadow_index then 
-									return false 
-								end
-							end
-						end
-					end
-				end
-			
-				return true
-			end
-
-			if light == 0 or shadow_test() then 
-				light = 0 -- return color.black 
-			end
 		
 			-- light lerp
 			light = rmath:map_range(light, 0, 1, 0.2, 1.0)
 			local frag_color = rmath:lerp(clear_color, gl_FragColor, light)
 
 			return Color(frag_color.X,frag_color.Y,frag_color.Z)
+			--return Color(
+			--	world_space_point.X * 255,
+			--	world_space_point.Y * 255,
+			--	world_space_point.Z * 255
+			--)
 		end
 	end
 end
