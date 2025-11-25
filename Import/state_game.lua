@@ -19,7 +19,7 @@ local demo_mesh = {}
 local albedo_data = {}
 local normal_data = {}
 local shadow_data = {}
-local light_dir = vec3(0,1,0)
+local light_dir = vec3(1,1,0)
 local ms_light_dir = vec3(0,1,0)
 local model_view_mat = {}
 
@@ -102,7 +102,7 @@ function ray_intersects_triangle(ray_origin, ray_vector, triangle)
     local t = inv_det * rmath:vec3_dot(edge2, s_cross_e1)
 
     if t > epsilon then -- ray intersection
-        return  vec3(ray_origin + ray_vector * t)
+        return  ray_origin + ray_vector * t
     else -- This means that there is a line intersection but not a ray intersection.
         return nil
     end
@@ -184,24 +184,7 @@ local function material_func(_x, _y, _pixel, _index, _vis_pd)
 			local world_space_point = fetch_attrib(demo_mesh[shader_input.primitive_index][2][1], bary)
 			local a_normal  = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_normals,  bary))
 
-			if rmath:vec3_dot(a_normal, ms_light_dir) > 0.0 then
-				for i = 1, #demo_mesh do
-					if i ~= shader_input.primitive_index then
-						-- [i] command -> [2] data -> [4] extra -> .normal
-						if rmath:vec3_dot(demo_mesh[i][2][4].normal, ms_light_dir) > 0.0 then
-							-- [i] command -> [2] data -> [1] face
-							if ray_intersects_triangle(world_space_point, ms_light_dir, demo_mesh[i][2][1]) then
-								light = 0.0
-								i = #demo_mesh
-							end
-						end
-					end
-				end
-			else
-				light = 0.0
-			end
-
-			if false then
+			if true then
 				-- attribute fetch
 				local a_texcoord  = fetch_attrib(shader_input.texcoords, bary)
 				
@@ -220,6 +203,19 @@ local function material_func(_x, _y, _pixel, _index, _vis_pd)
 				light = math.max(0, math.min(1, light))
 
 				gl_FragColor = vec3(tex_albedo.R, tex_albedo.G, tex_albedo.B)
+
+				for i = 1, #demo_mesh do
+					if i ~= shader_input.primitive_index then
+						-- [i] command -> [2] data -> [4] extra -> .normal
+						if rmath:vec3_dot(demo_mesh[i][2][4].normal, ms_light_dir) < 0.0 then
+							-- [i] command -> [2] data -> [1] face
+							if ray_intersects_triangle(world_space_point, ms_light_dir, demo_mesh[i][2][1]) then
+								light = 0.0
+								i = #demo_mesh
+							end
+						end
+					end
+				end
 			else
 				-- attribute fetch
 				local a_texcoord  = fetch_attrib(shader_input.texcoords, bary)
@@ -234,11 +230,6 @@ local function material_func(_x, _y, _pixel, _index, _vis_pd)
 			local frag_color = rmath:lerp(clear_color, gl_FragColor, light)
 
 			return Color(frag_color.X,frag_color.Y,frag_color.Z)
-			--return Color(
-			--	world_space_point.X * 255,
-			--	world_space_point.Y * 255,
-			--	world_space_point.Z * 255
-			--)
 		end
 	end
 end
@@ -268,7 +259,7 @@ function state_game:on_enter()
 		50    -- far clip
 	)
 	
-	demo_mesh = rmesh:require_drawlist("penta")	
+	demo_mesh = rmesh:require_drawlist("ShadowTest")	
 	engine.camera_pos = vec3(0,0,3.5)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
@@ -299,6 +290,8 @@ function state_game:update(_delta_time)
 
 	if engine.IS_RG then
 		DEBUG = gdt.Switch0.State and 1 or 0
+	else
+		DEBUG = engine.rinput["D"] and 1 or 0
 	end
 
 	if engine.rinput["UpArrow"]    then zoom = zoom / (1 + _delta_time) end
@@ -325,7 +318,7 @@ function state_game:update(_delta_time)
 end
 
 function state_game:draw()
-	light_dir = vec3(1,-0,-1)
+	light_dir = vec3(0.5,-1,-1)
 	light_dir = rmath:vec3_normalize(light_dir)
 	
 	-- Model Setup
