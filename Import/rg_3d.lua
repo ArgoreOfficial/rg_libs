@@ -168,6 +168,10 @@ function lib:get_draw_call(_index)
 	return g_draws[_index]
 end
 
+function lib:get_num_drawcalls()
+	return g_draw_id
+end
+
 --------------------------------------------------------
 --[[  View Matrices                                   ]]
 --------------------------------------------------------
@@ -537,6 +541,36 @@ local function clip_and_raster_triangle(
 		rmath:vec3_to_screen(_tri[2], _render_width, _render_height, 0),
 		rmath:vec3_to_screen(_tri[3], _render_width, _render_height, 0)
 	}
+	
+	local function vec3min3(_a, _b, _c)
+		return vec3(
+			math.min(_a.X, _b.X, _c.X),
+			math.min(_a.Y, _b.Y, _c.Y),
+			math.min(_a.Z, _b.Z, _c.Z)
+		)
+	end
+	
+	local function vec3max3(_a, _b, _c)
+		return vec3(
+			math.max(_a.X, _b.X, _c.X),
+			math.max(_a.Y, _b.Y, _c.Y),
+			math.max(_a.Z, _b.Z, _c.Z)
+		)
+	end
+	
+	_shader_input.aabb = rmath:aabb3(
+		vec3min3(p1,p2,p3),
+		vec3max3(p1,p2,p3)
+	)
+
+	_shader_input.intersects = {}
+	for intersect = 1, #g_draws do
+		local other_aabb = g_draws[intersect].args[5] or g_draws[intersect].args[4]
+		if other_aabb and rmath:aabb3_intersects_aabb3(other_aabb.aabb, _shader_input.aabb) then
+			_shader_input.intersects[#_shader_input.intersects + 1] = other_aabb
+		end
+	end
+	
 
 	for i=1, #draw_list do
 		if g_raster_tri_func then 
@@ -546,7 +580,7 @@ local function clip_and_raster_triangle(
 			
 			--local depth = (draw_list[i][1].Z + draw_list[i][2].Z + draw_list[i][3].Z) / 3
 			local depth = math.min(draw_list[i][1].Z,draw_list[i][2].Z,draw_list[i][3].Z)
-		
+			
 			_shader_input.draw_id = g_draw_id
 			s1 = rmath:vec3_to_screen(draw_list[i][1], _render_width, _render_height, draw_list[i][1].Z)
 			s2 = rmath:vec3_to_screen(draw_list[i][2], _render_width, _render_height, draw_list[i][2].Z)

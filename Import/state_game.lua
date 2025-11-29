@@ -155,6 +155,24 @@ local function compute_true_barycentric(_cs_point, _cs1, _cs2, _cs3, _invz1, _in
 	)
 end
 
+local function triangle_sign(p1, p2, p3)
+	return (p1.X - p3.X) * (p2.Y - p3.Y) - (p2.X - p3.X) * (p1.Y - p3.Y);
+end
+
+local function triangle_intersects_point(pt, v1, v2, v3)
+	local d1, d2, d3;
+	local has_neg, has_pos;
+
+	d1 = triangle_sign(pt, v1, v2);
+	d2 = triangle_sign(pt, v2, v3);
+	d3 = triangle_sign(pt, v3, v1);
+
+	has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0);
+	has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0);
+
+	return not(has_neg and has_pos);
+end
+
 local function material_func(_x, _y, _pixel, _index, _vis_pd)
 	if DEBUG == 1 then
 		if _pixel.R + _pixel.G + _pixel.B == 0 then
@@ -163,15 +181,80 @@ local function material_func(_x, _y, _pixel, _index, _vis_pd)
 			return color.black
 		end
 	elseif DEBUG == 2 then
-		return Color(
-			rmath:lerp(_pixel.R, 255, 0.5), 
-			rmath:lerp(_pixel.G, 255, 0.5), 
-			rmath:lerp(_pixel.B, 255, 0.5)
-		)
+		--return Color(
+		--	rmath:lerp(_pixel.R, 255, 0.5), 
+		--	rmath:lerp(_pixel.G, 255, 0.5), 
+		--	rmath:lerp(_pixel.B, 255, 0.5)
+		--)
+
+		if _index > 0 then 
+			shader_input = rg3d:get_draw_call(_index).args[5] or rg3d:get_draw_call(_index).args[4]
+
+			local clip_space_point = rmath:vec3_from_screen(vec2(_x,_y), gdt.VideoChip0.Width, gdt.VideoChip0.Height)
+			local cs = shader_input.clip_space_vertices
+			local bary = compute_true_barycentric(clip_space_point, cs[1], cs[2], cs[3],shader_input.inv_Zs[1],shader_input.inv_Zs[2],shader_input.inv_Zs[3])
+			local z = fetch_attrib(shader_input.inv_Zs, bary)
+			
+			local true_z_index = _index
+
+			for i = 1, #shader_input.intersects do
+				local other_shader_input = shader_input.intersects[i]
+				if other_shader_input.primitive_index ~= shader_input.primitive_index then
+					local other_ss = other_shader_input.screen_space_vertices
+					
+					if triangle_intersects_point(vec2(_x, _y), other_ss[1], other_ss[2], other_ss[3]) then
+						local other_cs = other_shader_input.clip_space_vertices
+						local other_bary = compute_true_barycentric(
+							clip_space_point, 
+							other_cs[1], other_cs[2], other_cs[3],
+							other_shader_input.inv_Zs[1],
+							other_shader_input.inv_Zs[2],
+							other_shader_input.inv_Zs[3]
+						)
+						
+						local bcheck = (other_bary.X + other_bary.Y + other_bary.Z) * other_bary.W
+						
+						if other_bary.X > 0 and other_bary.X < 1 and other_bary.Y > 0 and other_bary.Y < 1 and other_bary.Z > 0 and other_bary.Z < 1 then 
+							local other_z = fetch_attrib(other_shader_input.inv_Zs, other_bary)
+							local other_minz = math.min(
+								other_shader_input.inv_Zs[1],
+								other_shader_input.inv_Zs[2],
+								other_shader_input.inv_Zs[3]
+						   	)
+							local other_maxz = math.max(
+								other_shader_input.inv_Zs[1],
+								other_shader_input.inv_Zs[2],
+								other_shader_input.inv_Zs[3]
+						   	)
+
+							if other_z < other_minz or other_z > other_maxz then
+								local l = shader_input.a.ds 
+							end
+
+							if other_z > z then
+								z = other_z
+								true_z_index = other_shader_input.draw_id
+							end
+						end
+
+					end
+				end
+			end
+
+			if true_z_index ~= _index then
+				
+			end
+
+			return Color(z*z*255, z*z*255, z*z*255)
+			--return ColorHSV(0, 0, intersects / 10)
+		end
+
+		return color.black
+		--return ColorHSV(_index * 10, 1.0, 1.0)
 	else
 		if _index > 0 then 
 			shader_input = rg3d:get_draw_call(_index).args[5] or rg3d:get_draw_call(_index).args[4]
-			DO_SHADING = true
+			DO_SHADING = false
 			local gl_FragColor = vec3(255,255,255)
 
 			light = 1.0
@@ -184,7 +267,7 @@ local function material_func(_x, _y, _pixel, _index, _vis_pd)
 			local world_space_point = fetch_attrib(demo_mesh[shader_input.primitive_index][2][1], bary)
 			local a_normal  = rmath:vec3_normalize(fetch_attrib(shader_input.vertex_normals,  bary))
 
-			if true then
+			if DO_SHADING then
 				-- attribute fetch
 				local a_texcoord  = fetch_attrib(shader_input.texcoords, bary)
 				
@@ -259,7 +342,7 @@ function state_game:on_enter()
 		50    -- far clip
 	)
 	
-	demo_mesh = rmesh:require_drawlist("ShadowTest")	
+	demo_mesh = rmesh:require_drawlist("depth_test")	
 	engine.camera_pos = vec3(0,0,3.5)
 	engine.camera_pitch = 0
 	engine.camera_yaw   = rmath:radians(-90)
@@ -291,7 +374,8 @@ function state_game:update(_delta_time)
 	if engine.IS_RG then
 		DEBUG = gdt.Switch0.State and 1 or 0
 	else
-		DEBUG = engine.rinput["D"] and 1 or 0
+		DEBUG = engine.rinput["Alpha1"] and 1 or 0
+		DEBUG = engine.rinput["Alpha2"] and 2 or DEBUG
 	end
 
 	if engine.rinput["UpArrow"]    then zoom = zoom / (1 + _delta_time) end

@@ -40,6 +40,7 @@ local shading = gdt.ROM.User.SpriteSheets["shading_cross.png"]
 
 function eventChannel1(_sender,_event)
 	engine.rinput[_event.InputName] = _event.ButtonDown
+	--print(_event.InputName)
 end
 
 rg3d:set_light_dir(vec3(0,1,0))
