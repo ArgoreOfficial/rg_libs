@@ -1,7 +1,11 @@
 local vec3_meta = {}
 
 function _G.vec3(_x,_y,_z)
-    local vec = setmetatable({ X=_x, Y=_y, Z=_z }, vec3_meta)
+    if not _x then error("Expected X") end
+    if not _y then error("Expected Y") end
+    if not _z then error("Expected Z") end
+
+    local vec = setmetatable({ X=_x or 0, Y=_y, Z=_z }, vec3_meta)
     return vec
 end
 
