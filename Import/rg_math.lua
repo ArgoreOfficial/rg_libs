@@ -265,6 +265,27 @@ function lib:vec4_to_screen(_vec,_width,_height)
 end
 
 --------------------------------------------------------
+--[[  AABB                                            ]]
+--------------------------------------------------------
+
+function lib:aabb3(_min, _max)
+	return {
+		min = _min,
+		max = _max
+	}
+end
+
+function lib:aabb3_intersects_aabb3(_a, _b)
+	return 
+		_a.min.X <= _b.max.X and
+		_a.max.X >= _b.min.X and
+		_a.min.Y <= _b.max.Y and
+		_a.max.Y >= _b.min.Y and
+		_a.min.Z <= _b.max.Z and
+		_a.max.Z >= _b.min.Z
+end
+
+--------------------------------------------------------
 --[[  Line                                            ]]
 --------------------------------------------------------
 
