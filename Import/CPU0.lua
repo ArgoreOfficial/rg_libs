@@ -3,15 +3,11 @@ local IS_RG = _VERSION == "Luau"
 local function safe_get_asset(name, assetType) -- "SpriteSheet" | "Code" | "AudioSample"
 	if IS_RG then
 		for _, asset in gdt.ROM.User.Assets do
-			if asset.Name == name and asset.Type == assetType then
-				return asset
-			end
+			if asset.Name == name and asset.Type == assetType then return asset end
 		end
 	else
 		for _, asset in pairs(gdt.ROM.User.Assets) do
-			if asset.Name == name and asset.Type == assetType then
-				return asset
-			end
+			if asset.Name == name and asset.Type == assetType then return asset end
 		end
 	end
 	
